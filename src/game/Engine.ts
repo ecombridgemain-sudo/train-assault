@@ -627,15 +627,32 @@ export class GameEngine {
     this.player.position.x = THREE.MathUtils.lerp(this.player.position.x, this.targetX, 15 * dt);
     
     // 2. Move Player Y (Jumping & Gravity)
+    let overTrain = false;
+    for (let t of this.trains) {
+        if (this.player.position.z >= t.position.z - TRAIN_LENGTH/2 && 
+            this.player.position.z <= t.position.z + TRAIN_LENGTH/2) {
+            overTrain = true;
+            break;
+        }
+    }
+
+    if (!overTrain && this.player.position.y <= 1.0 && this.yVelocity <= 0) {
+        this.isJumping = true;
+    }
+
     if (this.isJumping) {
       this.player.position.y += this.yVelocity * dt;
       this.yVelocity -= GRAVITY * dt;
       
-      if (this.player.position.y <= 1) {
+      if (this.player.position.y <= 1 && overTrain && this.yVelocity < 0) {
         this.player.position.y = 1;
         this.isJumping = false;
         this.yVelocity = 0;
       }
+    }
+    
+    if (this.player.position.y < -10) {
+        this.die();
     }
     
     // 3. Move Trains
@@ -832,24 +849,7 @@ export class GameEngine {
         }
     }
     
-    // 6. Fall off train check
-    let overTrain = false;
-    for (let t of this.trains) {
-        // Rough check Z bounds
-        if (this.player.position.z >= t.position.z - TRAIN_LENGTH/2 && 
-            this.player.position.z <= t.position.z + TRAIN_LENGTH/2) {
-            overTrain = true;
-            break;
-        }
-    }
-    if (!overTrain && !this.isJumping && this.player.position.y <= 1.1) { // 1.1 leeway
-        // Start falling
-        this.yVelocity -= GRAVITY * dt;
-        this.player.position.y += this.yVelocity * dt;
-        if (this.player.position.y < -10) {
-            this.die();
-        }
-    }
+    // 6. Extraneous logic removed
 
     // 7. Update Particles
     for (let i = this.particles.length - 1; i >= 0; i--) {

@@ -327,23 +327,21 @@ const MobileControls = () => {
   };
 
   return (
-    <div className="absolute inset-x-0 bottom-8 px-4 flex justify-between pointer-events-none z-30 sm:hidden">
+    <div className="absolute inset-x-0 bottom-4 px-2 flex justify-between pointer-events-none z-30 sm:hidden select-none touch-none">
       {/* Left Controls - Movement */}
-      <div className="flex gap-2 pointer-events-auto items-end">
+      <div className="flex gap-1 pointer-events-auto items-end">
         <button 
           onPointerDown={(e) => { e.preventDefault(); handleAction('left', true); }}
-          className="w-14 h-14 bg-white/10 border border-white/20 rounded-full flex items-center justify-center text-white backdrop-blur-sm active:bg-white/30 mb-2"
+          className="w-14 h-14 bg-white/20 border border-white/30 rounded-full flex items-center justify-center text-white backdrop-blur-md active:bg-white/40 text-xl font-black"
         >◀</button>
-        <div className="flex flex-col gap-2">
-          <button 
-            onPointerDown={(e) => { e.preventDefault(); handleAction('jump', true); }}
-            className="w-14 h-14 bg-white/10 border border-white/20 rounded-full flex items-center justify-center text-white backdrop-blur-sm active:bg-white/30"
-          >▲</button>
-          <button 
-            onPointerDown={(e) => { e.preventDefault(); handleAction('right', true); }}
-            className="w-14 h-14 bg-white/10 border border-white/20 rounded-full flex items-center justify-center text-white backdrop-blur-sm active:bg-white/30"
-          >▶</button>
-        </div>
+        <button 
+          onPointerDown={(e) => { e.preventDefault(); handleAction('jump', true); }}
+          className="w-14 h-14 bg-white/20 border border-white/30 rounded-full flex items-center justify-center text-white backdrop-blur-md active:bg-white/40 text-xl font-black mb-4 mx-1"
+        >▲</button>
+        <button 
+          onPointerDown={(e) => { e.preventDefault(); handleAction('right', true); }}
+          className="w-14 h-14 bg-white/20 border border-white/30 rounded-full flex items-center justify-center text-white backdrop-blur-md active:bg-white/40 text-xl font-black"
+        >▶</button>
       </div>
 
       {/* Right Controls - Combat */}
@@ -352,13 +350,13 @@ const MobileControls = () => {
           onPointerDown={(e) => { e.preventDefault(); handleAction('slowmo', true); }}
           onPointerUp={(e) => { e.preventDefault(); handleAction('slowmo', false); }}
           onPointerLeave={(e) => { e.preventDefault(); handleAction('slowmo', false); }}
-          className="w-14 h-14 bg-blue-500/20 border border-blue-400/50 rounded-full flex items-center justify-center text-blue-400 backdrop-blur-sm active:bg-blue-500/50 mb-2"
+          className="w-14 h-14 bg-blue-500/30 border border-blue-400/60 rounded-full flex items-center justify-center text-blue-300 backdrop-blur-md active:bg-blue-500/60 text-2xl"
         >⏱</button>
         <button 
           onPointerDown={(e) => { e.preventDefault(); handleAction('shoot', true); }}
           onPointerUp={(e) => { e.preventDefault(); handleAction('shoot', false); }}
           onPointerLeave={(e) => { e.preventDefault(); handleAction('shoot', false); }}
-          className="w-20 h-20 bg-orange-500/20 border border-orange-500/50 rounded-full flex items-center justify-center text-orange-500 backdrop-blur-sm text-2xl active:bg-orange-500/50"
+          className="w-16 h-16 bg-orange-500/30 border border-orange-500/60 rounded-full flex items-center justify-center text-orange-400 backdrop-blur-md text-3xl active:bg-orange-500/60"
         >🔫</button>
       </div>
     </div>
