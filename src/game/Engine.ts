@@ -145,7 +145,7 @@ export class GameEngine {
     const loader = new GLTFLoader();
     // Assuming the user places 'maincaracter.glb' in the vite public folder -> served at /maincaracter.glb
     loader.load(
-      'https://raw.githubusercontent.com/ecombridgemain-sudo/train-assault/refs/heads/main/public/maincaracter.glb',
+      'public/maincaracter.glb',
       (gltf) => {
         console.log('Player model loaded successfully');
         // Remove placeholder and add the loaded model
