@@ -149,8 +149,9 @@ export class GameEngine {
 
     // Async GLTF Loading
     const loader = new GLTFLoader();
+    // Load local file from the /public folder
     loader.load(
-      'https://raw.githubusercontent.com/ecombridgemain-sudo/train-assault/refs/heads/main/public/maincaracter.glb',
+      '/maincaracter.glb',
       (gltf) => {
         console.log('Player model loaded successfully');
         // Remove placeholder and add the loaded model
