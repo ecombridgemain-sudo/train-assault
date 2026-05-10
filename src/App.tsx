@@ -3,6 +3,7 @@ import { GameEngine } from './game/Engine';
 import { useGameStore, GameState } from './store/useGameStore';
 import { Play, ShoppingCart, Target, Settings, ShieldAlert, Zap, Repeat, Heart } from 'lucide-react';
 import { audioManager } from './game/AudioManager';
+import { motion } from 'motion/react';
 
 let gameEngine: GameEngine | null = null;
 
@@ -175,9 +176,22 @@ const GameOverScreen = () => {
     <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center pointer-events-auto z-50 backdrop-blur-sm" style={{ fontFamily: 'Orbitron, sans-serif' }}>
       <div className="relative mb-12">
         <div className="absolute -inset-4 bg-red-600 blur-[60px] opacity-20"></div>
-        <h1 className="text-[140px] font-black leading-[0.8] tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-red-500 via-red-600 to-red-900 uppercase select-none italic text-center drop-shadow-[0_0_20px_rgba(255,0,0,0.5)]">
+        <motion.h1 
+          initial={{ scale: 2.5, opacity: 0 }}
+          animate={{ 
+            scale: [2.5, 0.9, 1.1, 1], 
+            opacity: 1,
+            x: [0, -15, 15, -10, 10, -5, 5, 0]
+          }}
+          transition={{ 
+            duration: 0.7,
+            delay: 0.4,
+            times: [0, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 1],
+            ease: "easeOut"
+          }}
+          className="text-[140px] font-black leading-[0.8] tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-red-500 via-red-600 to-red-900 uppercase select-none italic text-center drop-shadow-[0_0_20px_rgba(255,0,0,0.5)]">
           WASTED
-        </h1>
+        </motion.h1>
       </div>
       
       <div className="flex gap-12 mb-16">
