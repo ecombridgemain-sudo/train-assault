@@ -1,18 +1,41 @@
+import { useGameStore } from '../store/useGameStore';
+
 class ProceduralAudio {
   ctx: AudioContext;
   masterGain: GainNode;
+  sfxGain: GainNode;
+  musicGain: GainNode;
 
   constructor() {
     this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.value = 0.5;
+    this.sfxGain = this.ctx.createGain();
+    this.musicGain = this.ctx.createGain();
+    
+    this.sfxGain.connect(this.masterGain);
+    this.musicGain.connect(this.masterGain);
     this.masterGain.connect(this.ctx.destination);
+    
+    this.updateVolumes();
+  }
+  
+  updateVolumes() {
+    try {
+      const { settings } = useGameStore.getState().persistent;
+      this.masterGain.gain.value = settings.masterVolume / 100;
+      this.sfxGain.gain.value = settings.sfxVolume / 100;
+      this.musicGain.gain.value = settings.musicVolume / 100;
+    } catch {
+      this.masterGain.gain.value = 0.5;
+    }
   }
 
   resume() {
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    this.updateVolumes();
   }
 
   setMasterVolume(val: number) {
@@ -50,7 +73,7 @@ class ProceduralAudio {
     osc.connect(gain);
     noise.connect(noiseFilter);
     noiseFilter.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxGain);
     
     osc.start(t);
     noise.start(t);
@@ -71,7 +94,7 @@ class ProceduralAudio {
     gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
     
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.1);
   }
@@ -90,7 +113,7 @@ class ProceduralAudio {
     gain.gain.linearRampToValueAtTime(0, t + 0.15);
     
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.15);
   }
@@ -119,7 +142,7 @@ class ProceduralAudio {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxGain);
 
     noise.start(t);
   }
@@ -139,7 +162,7 @@ class ProceduralAudio {
     gain.gain.linearRampToValueAtTime(0, t + 0.15);
     
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.15);
   }
@@ -160,7 +183,7 @@ class ProceduralAudio {
     gain.gain.linearRampToValueAtTime(0, t + 0.3);
     
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.3);
   }
@@ -181,7 +204,7 @@ class ProceduralAudio {
     gain.gain.linearRampToValueAtTime(0, t + 0.4);
     
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.4);
   }
@@ -201,7 +224,7 @@ class ProceduralAudio {
     gain.gain.linearRampToValueAtTime(0, t + 0.15);
     
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.15);
   }
@@ -221,7 +244,7 @@ class ProceduralAudio {
     gain.gain.linearRampToValueAtTime(0, t + 0.15);
     
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.15);
   }

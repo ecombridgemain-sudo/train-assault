@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type GameState = 'MENU' | 'PLAYING' | 'PAUSED' | 'GAME_OVER' | 'SHOP' | 'MISSIONS';
+export type GameState = 'MENU' | 'PLAYING' | 'PAUSED' | 'GAME_OVER' | 'SHOP' | 'MISSIONS' | 'SETTINGS';
 export type GameMode = 'UNLIMITED' | 'MISSION';
 export type WeaponType = 'PISTOL' | 'SHOTGUN' | 'RIFLE';
 
@@ -14,6 +14,11 @@ interface PersistentData {
   equippedSkin: string;
   ownedWeapons: WeaponType[];
   equippedWeapon: WeaponType;
+  settings: {
+    masterVolume: number;
+    musicVolume: number;
+    sfxVolume: number;
+  };
 }
 
 interface StoreState {
@@ -30,6 +35,7 @@ interface StoreState {
   updateHighScore: (score: number) => void;
   buyItem: (type: 'weapon' | 'skin', id: string, cost: number) => boolean;
   equipItem: (type: 'weapon' | 'skin', id: string) => void;
+  updateSettings: (settings: Partial<PersistentData['settings']>) => void;
   
   // Realtime Gameplay State
   hp: number;
@@ -40,7 +46,7 @@ interface StoreState {
   isBulletTime: boolean;
   distance: number;
   difficultyLevel: number;
-  activePowerup: { type: 'SHIELD' | 'DOUBLE_COIN' | 'RAPID_FIRE' | null, timeLeft: number };
+  activePowerup: { type: 'SHIELD' | 'DOUBLE_COIN' | 'RAPID_FIRE' | 'DOUBLE_WEAPONS' | null, timeLeft: number };
   setGameplayState: (state: Partial<{ 
     hp: number, maxHp: number, score: number, combo: number, 
     bulletTimeMeter: number, isBulletTime: boolean, distance: number,
@@ -60,10 +66,16 @@ const loadPersistentData = (): PersistentData => {
     equippedSkin: 'default',
     ownedWeapons: ['PISTOL'],
     equippedWeapon: 'PISTOL',
+    settings: {
+      masterVolume: 50,
+      musicVolume: 50,
+      sfxVolume: 50,
+    }
   };
   if (saved) {
     try {
-      return { ...defaultData, ...JSON.parse(saved) };
+      const parsed = JSON.parse(saved);
+      return { ...defaultData, ...parsed, settings: { ...defaultData.settings, ...parsed.settings } };
     } catch {
       return defaultData;
     }
@@ -84,6 +96,15 @@ export const useGameStore = create<StoreState>((set, get) => ({
   setGameState: (state) => set({ gameState: state }),
   setGameMode: (mode) => set({ gameMode: mode }),
   setCurrentMission: (id) => set({ currentMissionId: id }),
+  
+  updateSettings: (settings) => set((state) => {
+    const nextPersistent = { 
+      ...state.persistent, 
+      settings: { ...state.persistent.settings, ...settings } 
+    };
+    savePersistentData(nextPersistent);
+    return { persistent: nextPersistent };
+  }),
   
   addCoins: (amount) => set((state) => {
     const nextPersistent = { ...state.persistent, coins: state.persistent.coins + amount };

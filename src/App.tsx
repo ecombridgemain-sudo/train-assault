@@ -118,6 +118,9 @@ const MainMenu = () => {
           <button onClick={() => setGameState('SHOP')} className="px-8 py-5 bg-gray-900 border border-gray-800 text-white font-black text-xl hover:bg-gray-800 transition-colors uppercase skew-x-[-12deg] flex items-center">
             <span className="skew-x-[12deg] flex items-center gap-2"><ShoppingCart /> Store</span>
           </button>
+          <button onClick={() => setGameState('SETTINGS')} className="px-8 py-5 bg-gray-900 border border-gray-800 text-white font-black text-xl hover:bg-gray-800 transition-colors uppercase skew-x-[-12deg] flex items-center">
+            <span className="skew-x-[12deg] flex items-center gap-2">Settings</span>
+          </button>
         </div>
       </main>
 
@@ -225,6 +228,63 @@ const GameOverScreen = () => {
       </div>
     </div>
   );
+};
+
+const SettingsMenu = () => {
+    const { setGameState, persistent, updateSettings } = useGameStore();
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      updateSettings({ [name]: parseInt(value, 10) });
+      
+      // We immediately update AudioManager so changes are heard instantly
+      if (typeof audioManager !== 'undefined') {
+          if (audioManager.updateVolumes) {
+              audioManager.updateVolumes();
+          }
+      }
+    };
+
+    return (
+        <div className="absolute inset-0 bg-[#0a0a0b] pointer-events-auto flex flex-col p-10 text-white z-40" style={{ fontFamily: 'Orbitron, sans-serif' }}>
+            <div className="flex justify-between items-center mb-12 border-b border-white/10 pb-6">
+                <div>
+                   <h1 className="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 uppercase">
+                     SYSTEM SETTINGS
+                   </h1>
+                </div>
+                <button onClick={() => setGameState('MENU')} className="px-6 py-3 bg-white/10 text-white font-bold hover:bg-white/20 transition-colors uppercase skew-x-[-12deg]">
+                    <span className="skew-x-[12deg] block">Return To Menu</span>
+                </button>
+            </div>
+            
+            <div className="flex flex-col gap-12 max-w-2xl mx-auto w-full">
+                <div className="flex flex-col gap-4">
+                   <div className="flex justify-between items-center">
+                     <span className="text-xl font-bold tracking-widest uppercase">Master Volume</span>
+                     <span className="font-mono text-gray-400">{persistent.settings?.masterVolume ?? 50}%</span>
+                   </div>
+                   <input type="range" name="masterVolume" min="0" max="100" value={persistent.settings?.masterVolume ?? 50} onChange={handleChange} className="w-full accent-cyan-400 cursor-pointer" />
+                </div>
+
+                <div className="flex flex-col gap-4">
+                   <div className="flex justify-between items-center">
+                     <span className="text-xl font-bold tracking-widest text-[#ff4e00] uppercase">SFX Volume</span>
+                     <span className="font-mono text-gray-400">{persistent.settings?.sfxVolume ?? 50}%</span>
+                   </div>
+                   <input type="range" name="sfxVolume" min="0" max="100" value={persistent.settings?.sfxVolume ?? 50} onChange={handleChange} className="w-full accent-[#ff4e00] cursor-pointer" />
+                </div>
+
+                <div className="flex flex-col gap-4">
+                   <div className="flex justify-between items-center">
+                     <span className="text-xl font-bold tracking-widest text-emerald-400 uppercase">Music Volume</span>
+                     <span className="font-mono text-gray-400">{persistent.settings?.musicVolume ?? 50}%</span>
+                   </div>
+                   <input type="range" name="musicVolume" min="0" max="100" value={persistent.settings?.musicVolume ?? 50} onChange={handleChange} className="w-full accent-emerald-400 cursor-pointer" />
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const Shop = () => {
@@ -433,6 +493,7 @@ export default function App() {
       {gameState === 'GAME_OVER' && <GameOverScreen />}
       {gameState === 'SHOP' && <Shop />}
       {gameState === 'MISSIONS' && <Missions />}
+      {gameState === 'SETTINGS' && <SettingsMenu />}
       
     </div>
   );

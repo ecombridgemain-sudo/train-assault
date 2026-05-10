@@ -38,7 +38,7 @@ interface Projectile {
 
 interface Pickup {
   mesh: THREE.Mesh;
-  type: 'health' | 'shield' | 'rapid' | 'coin';
+  type: 'health' | 'shield' | 'rapid' | 'coin' | 'double';
   zBase: number;
   lane: Lane;
   spinY: number;
@@ -462,13 +462,14 @@ export class GameEngine {
       const lanes: Lane[] = [-1, 0, 1];
       const lane = lanes[Math.floor(Math.random() * lanes.length)];
       
-      const pTypes: Pickup['type'][] = ['health', 'shield', 'rapid', 'coin', 'coin', 'coin'];
+      const pTypes: Pickup['type'][] = ['health', 'shield', 'rapid', 'double', 'coin', 'coin', 'coin'];
       const type = pTypes[Math.floor(Math.random() * pTypes.length)];
       
       let color = COLORS.coin;
       if (type === 'health') color = COLORS.powerupHealth;
       if (type === 'shield') color = COLORS.powerupShield;
       if (type === 'rapid') color = COLORS.powerupRapid;
+      if (type === 'double') color = COLORS.powerupDouble;
       
       const geo = type === 'coin' ? new THREE.CylinderGeometry(0.5, 0.5, 0.2, 16) : new THREE.OctahedronGeometry(0.5);
       const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5 });
@@ -564,33 +565,40 @@ export class GameEngine {
     // Raycast forward from player
     audioManager.playShoot();
     
-    for (let i = 0; i < weaponConfig.projectiles; i++) {
-        const projGeo = new THREE.BoxGeometry(0.2, 0.2, 2);
-        const projMat = new THREE.MeshBasicMaterial({ color: COLORS.bulletTrail });
-        const proj = new THREE.Mesh(projGeo, projMat);
-        proj.position.copy(this.player.position);
-        proj.position.y += 0.5; // Shoot from chest
-        
-        let vel = new THREE.Vector3(0, 0, -50);
-        if (weaponConfig.projectiles > 1) {
-            // Spread
-            const angle = ((i / (weaponConfig.projectiles - 1)) - 0.5) * weaponConfig.spread;
-            vel.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
-        } else if (weaponConfig.spread > 0) { // Slight inaccuracy for rifle maybe
-            const angle = (Math.random() - 0.5) * weaponConfig.spread;
-            vel.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+    const isDouble = store.activePowerup.type === 'DOUBLE_WEAPONS';
+    const shotsToFire = isDouble ? 2 : 1;
+    
+    for (let s = 0; s < shotsToFire; s++) {
+        const offset = isDouble ? (s === 0 ? -0.5 : 0.5) : 0;
+        for (let i = 0; i < weaponConfig.projectiles; i++) {
+            const projGeo = new THREE.BoxGeometry(0.2, 0.2, 2);
+            const projMat = new THREE.MeshBasicMaterial({ color: COLORS.bulletTrail });
+            const proj = new THREE.Mesh(projGeo, projMat);
+            proj.position.copy(this.player.position);
+            proj.position.y += 0.5; // Shoot from chest
+            proj.position.x += offset; // Double weapon offset
+            
+            let vel = new THREE.Vector3(0, 0, -50);
+            if (weaponConfig.projectiles > 1) {
+                // Spread
+                const angle = ((i / (weaponConfig.projectiles - 1)) - 0.5) * weaponConfig.spread;
+                vel.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+            } else if (weaponConfig.spread > 0) { // Slight inaccuracy for rifle maybe
+                const angle = (Math.random() - 0.5) * weaponConfig.spread;
+                vel.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+            }
+            
+            // Tag with damage amount
+            proj.userData = { damage: weaponConfig.damage };
+            
+            this.scene.add(proj);
+            this.projectiles.push({
+                mesh: proj,
+                velocity: vel,
+                isPlayer: true,
+                life: 1.5
+            });
         }
-        
-        // Tag with damage amount
-        proj.userData = { damage: weaponConfig.damage };
-        
-        this.scene.add(proj);
-        this.projectiles.push({
-            mesh: proj,
-            velocity: vel,
-            isPlayer: true,
-            life: 1.5
-        });
     }
     
     this.addScreenShake(0.1);
@@ -1071,6 +1079,9 @@ export class GameEngine {
             } else if (p.type === 'rapid') {
                 audioManager.playRapidFirePickup();
                 store.setGameplayState({ activePowerup: { type: 'RAPID_FIRE', timeLeft: 10 }});
+            } else if (p.type === 'double') {
+                audioManager.playRapidFirePickup(); // Use same sound for now
+                store.setGameplayState({ activePowerup: { type: 'DOUBLE_WEAPONS', timeLeft: 15 }});
             } else if (p.type === 'coin') {
                 audioManager.playCoin();
                 store.addCoins(10);

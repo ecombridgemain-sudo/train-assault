@@ -22,6 +22,7 @@ export const COLORS = {
   powerupHealth: 0x00ff00,
   powerupShield: 0x00ffff,
   powerupRapid: 0xff00ff,
+  powerupDouble: 0xffaa00,
 };
 
 export const WEAPONS = {
