@@ -58,7 +58,14 @@ const HUD = () => {
 
       {/* Visual Overlay for Bullet Time */}
       {isBulletTime && (
-        <div className="fixed inset-0 bg-blue-500/20 mix-blend-overlay pointer-events-none animate-pulse z-10" />
+        <div className="fixed inset-0 pointer-events-none z-10 transition-all duration-300 overflow-hidden">
+           <div className="absolute inset-0 bg-cyan-500/10 mix-blend-overlay animate-pulse" />
+           <div className="absolute inset-0 backdrop-blur-[2px] backdrop-saturate-150" style={{ 
+               boxShadow: 'inset 0 0 100px rgba(0, 255, 255, 0.2), inset 0 0 150px rgba(255, 0, 50, 0.2)' 
+           }} />
+           <div className="absolute inset-0 border-[4px] border-cyan-500/20 mix-blend-screen" />
+           <div className="bullet-time-scanline" />
+        </div>
       )}
 
       {/* Combat UI Overlays (Ghosting) */}

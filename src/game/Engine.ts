@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useGameStore, WeaponType } from '../store/useGameStore';
 import { audioManager } from './AudioManager';
-import { LANE_WIDTH, FORWARD_SPEED, GRAVITY, JUMP_VELOCITY, TRAIN_LENGTH, COLORS, MAX_TRAINS, TRAIN_GAP, WEAPONS } from './constants';
+import { LANE_WIDTH, FORWARD_SPEED, GRAVITY, JUMP_VELOCITY, TRAIN_LENGTH, COLORS, MAX_TRAINS, BASE_TRAIN_GAP, WEAPONS } from './constants';
 
 type Lane = -1 | 0 | 1;
 
@@ -59,6 +59,7 @@ export class GameEngine {
   runTime: number = 0;
   shootTimer: number = 0;
   isShooting: boolean = false;
+  lastBossScore: number = 0;
   
   // Player State
   lane: Lane = 0;
@@ -268,10 +269,17 @@ export class GameEngine {
     let touchStartX = 0;
     let touchStartY = 0;
     this.renderer.domElement.addEventListener('touchstart', (e) => {
+      e.preventDefault();
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
-    });
+    }, { passive: false });
+    
+    this.renderer.domElement.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+    }, { passive: false });
+    
     this.renderer.domElement.addEventListener('touchend', (e) => {
+      e.preventDefault();
       const touchEndX = e.changedTouches[0].clientX;
       const touchEndY = e.changedTouches[0].clientY;
       const dx = touchEndX - touchStartX;
@@ -305,6 +313,7 @@ export class GameEngine {
     this.timeScale = 1.0;
     this.runTime = 0;
     this.shootTimer = 0;
+    this.lastBossScore = 0;
     
     // Clear old objects
     this.trains.forEach(t => this.scene.remove(t));
@@ -318,7 +327,7 @@ export class GameEngine {
     
     // Generate initial trains
     for (let i = 0; i < MAX_TRAINS; i++) {
-        this.spawnTrain(i * (TRAIN_LENGTH + TRAIN_GAP) * -1);
+        this.spawnTrain(i * (TRAIN_LENGTH + BASE_TRAIN_GAP) * -1);
     }
   }
 
@@ -410,6 +419,46 @@ export class GameEngine {
           lane,
           zBase: trainZ + localZ,
           spinY: Math.random() * Math.PI
+      });
+  }
+
+  spawnBoss() {
+      const bossGroup = new THREE.Group();
+      
+      // Main central block
+      const geoCenter = new THREE.BoxGeometry(4, 4, 3);
+      const mat = new THREE.MeshStandardMaterial({ color: 0xaa0000, emissive: 0x440000, roughness: 0.2 });
+      const mainObj = new THREE.Mesh(geoCenter, mat);
+      bossGroup.add(mainObj);
+      
+      // Rotating ring around it
+      const ringGeo = new THREE.TorusGeometry(3.5, 0.4, 8, 24);
+      const ringMat = new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xcc2200, roughness: 0.1 });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.name = "bossRing"; // to rotate it in update
+      bossGroup.add(ring);
+      
+      // "Wings" or side blocks
+      const wingGeo = new THREE.BoxGeometry(8, 1, 2);
+      const wingMat = new THREE.MeshStandardMaterial({ color: 0x333333, emissive: 0x111111 });
+      const wing = new THREE.Mesh(wingGeo, wingMat);
+      bossGroup.add(wing);
+      
+      const diff = useGameStore.getState().difficultyLevel;
+      
+      // Starting position way out and high up
+      bossGroup.position.set(0, 10, -80);
+      
+      this.scene.add(bossGroup);
+      
+      this.enemies.push({
+          mesh: bossGroup,
+          type: 'boss',
+          hp: 800 * diff,
+          lane: 0,
+          zBase: -80, // Target Z
+          state: 'entering',
+          timer: 0
       });
   }
 
@@ -605,6 +654,15 @@ export class GameEngine {
         }
     }
     
+    // Boss trigger
+    if (store.score > this.lastBossScore + 1500) {
+        this.lastBossScore = store.score;
+        const hasBoss = this.enemies.some(e => e.type === 'boss');
+        if (!hasBoss) {
+            this.spawnBoss();
+        }
+    }
+    
     // Bullet time input
     if (this.keys['ShiftLeft'] || this.keys['ShiftRight']) {
       if (store.bulletTimeMeter > 0) {
@@ -682,7 +740,10 @@ export class GameEngine {
       this.trains.forEach(t => {
           if (t.position.z < minZ) minZ = t.position.z;
       });
-      this.spawnTrain(minZ - (TRAIN_LENGTH + TRAIN_GAP));
+      
+      const currentGap = BASE_TRAIN_GAP + (diffLevel - 1) * 8;
+      
+      this.spawnTrain(minZ - (TRAIN_LENGTH + currentGap));
     }
     
     // 3.5 Move Scenery for Parallax Effect
@@ -722,7 +783,13 @@ export class GameEngine {
                       this.triggerExplosion(e.mesh.getWorldPosition(new THREE.Vector3()), COLORS.enemyGrunt);
                       e.mesh.parent?.remove(e.mesh);
                       this.enemies.splice(j, 1);
-                      store.setGameplayState({ combo: store.combo + 1, score: store.score + 100 * store.combo });
+                      if (e.type === 'boss') {
+                          this.triggerExplosion(e.mesh.getWorldPosition(new THREE.Vector3()), 0xffffff); // Extra big explosion effect natively handled by having more particles in the future, for now double explosion
+                          this.triggerExplosion(e.mesh.getWorldPosition(new THREE.Vector3()), 0xff0000);
+                          store.setGameplayState({ combo: store.combo + 5, score: store.score + 5000 });
+                      } else {
+                          store.setGameplayState({ combo: store.combo + 1, score: store.score + 100 * store.combo });
+                      }
                   }
                   break;
               }
@@ -801,6 +868,52 @@ export class GameEngine {
                 e.mesh.parent?.remove(e.mesh);
                 this.enemies.splice(i, 1);
                 continue;
+            }
+        } else if (e.type === 'boss') {
+            // Boss movement
+            e.mesh.position.x = Math.sin(e.timer * 0.5) * LANE_WIDTH * 1.5;
+            e.mesh.position.y = 6 + Math.sin(e.timer * 2) * 2;
+            
+            const ring = e.mesh.getObjectByName('bossRing');
+            if (ring) {
+                ring.rotation.z += dt * 2;
+                ring.rotation.x = Math.sin(e.timer) * 0.2;
+            }
+            
+            if (e.state === 'entering') {
+                e.zBase = Math.min(-40, e.zBase + dt * 10);
+                e.mesh.position.z = e.zBase;
+                if (e.zBase >= -40) e.state = 'attacking';
+            } else if (e.state === 'attacking') {
+                e.mesh.position.z = e.zBase + Math.sin(e.timer * 0.3) * 5;
+                
+                // Boss attack pattern
+                if (e.timer > 1.5 - (diffLevel * 0.1)) {
+                    e.timer = 0;
+                    
+                    // High-damage sweeping attack
+                    for(let k = -1; k <= 1; k++) {
+                        setTimeout(() => {
+                            if (store.gameState !== 'PLAYING') return;
+                            const projGeo = new THREE.BoxGeometry(1, 0.5, 2);
+                            const projMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+                            const proj = new THREE.Mesh(projGeo, projMat);
+                            
+                            const spawnPos = new THREE.Vector3();
+                            e.mesh.getWorldPosition(spawnPos);
+                            spawnPos.y -= 2; // Under the boss
+                            proj.position.copy(spawnPos);
+                            
+                            const pPos = this.player.position.clone();
+                            pPos.x += k * LANE_WIDTH * 1.2;
+                            const dir = pPos.sub(spawnPos).normalize();
+                            
+                            this.scene.add(proj);
+                            // Projectiles marked as not from player, with high size/damage
+                            this.projectiles.push({ mesh: proj, velocity: dir.multiplyScalar(20 + 5*diffLevel), isPlayer: false, life: 5.0 });
+                        }, (k + 1) * 150);
+                    }
+                }
             }
         }
         
