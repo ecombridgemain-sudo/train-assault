@@ -1,5 +1,11 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { RGBShiftShader } from 'three/examples/jsm/shaders/RGBShiftShader.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { useGameStore, WeaponType } from '../store/useGameStore';
 import { audioManager } from './AudioManager';
 import { LANE_WIDTH, FORWARD_SPEED, GRAVITY, JUMP_VELOCITY, TRAIN_LENGTH, COLORS, MAX_TRAINS, BASE_TRAIN_GAP, WEAPONS } from './constants';
@@ -43,6 +49,11 @@ export class GameEngine {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
+  
+  // Post-Processing
+  composer!: EffectComposer;
+  bloomPass!: UnrealBloomPass;
+  rgbShiftPass!: ShaderPass;
   
   clock: THREE.Clock;
   isRunning: boolean = false;
@@ -98,6 +109,25 @@ export class GameEngine {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.container.appendChild(this.renderer.domElement);
+    
+    // Setup Post-Processing
+    this.composer = new EffectComposer(this.renderer);
+    
+    const renderPass = new RenderPass(this.scene, this.camera);
+    this.composer.addPass(renderPass);
+    
+    // Bloom
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.85);
+    this.composer.addPass(this.bloomPass);
+    
+    // Chromatic Aberration
+    this.rgbShiftPass = new ShaderPass(RGBShiftShader);
+    this.rgbShiftPass.uniforms['amount'].value = 0.0015;
+    this.composer.addPass(this.rgbShiftPass);
+    
+    // Output pass
+    const outputPass = new OutputPass();
+    this.composer.addPass(outputPass);
     
     // Lighting
     const dirLight = new THREE.DirectionalLight(0xccddff, 1.5);
@@ -301,6 +331,9 @@ export class GameEngine {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    if (this.composer) {
+        this.composer.setSize(window.innerWidth, window.innerHeight);
+    }
   }
 
   initializeWorld() {
@@ -335,12 +368,46 @@ export class GameEngine {
     const trainGroup = new THREE.Group();
     trainGroup.position.z = zPos;
     
-    const trainGeo = new THREE.BoxGeometry(LANE_WIDTH * 3 + 2, 2, TRAIN_LENGTH);
+    // The road itself
+    const trainWidth = LANE_WIDTH * 3 + 2;
+    const trainGeo = new THREE.BoxGeometry(trainWidth, 2, TRAIN_LENGTH);
     const trainMat = new THREE.MeshStandardMaterial({ color: COLORS.train });
     const trainMesh = new THREE.Mesh(trainGeo, trainMat);
     trainMesh.position.y = -1; // Top of train is y=0
     trainGroup.add(trainMesh);
     
+    // Add side fences
+    const fenceMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.5, roughness: 0.5 });
+    const fenceHeight = 1.0;
+    const postGeo = new THREE.BoxGeometry(0.2, fenceHeight, 0.2);
+    const railGeo = new THREE.BoxGeometry(0.1, 0.1, TRAIN_LENGTH);
+    
+    const buildFence = () => {
+        const fence = new THREE.Group();
+        const topRail = new THREE.Mesh(railGeo, fenceMat);
+        topRail.position.y = fenceHeight * 0.9;
+        fence.add(topRail);
+        const midRail = new THREE.Mesh(railGeo, fenceMat);
+        midRail.position.y = fenceHeight * 0.4;
+        fence.add(midRail);
+        
+        for (let i = 0; i < TRAIN_LENGTH; i += 4) {
+            const post = new THREE.Mesh(postGeo, fenceMat);
+            // Center the posts along the Z axis
+            post.position.set(0, fenceHeight / 2, -TRAIN_LENGTH / 2 + i + 2);
+            fence.add(post);
+        }
+        return fence;
+    };
+    
+    const leftFence = buildFence();
+    leftFence.position.x = -trainWidth / 2 + 0.2;
+    trainGroup.add(leftFence);
+    
+    const rightFence = buildFence();
+    rightFence.position.x = trainWidth / 2 - 0.2;
+    trainGroup.add(rightFence);
+
     // Randomly spawn an enemy or pickup on this train if it's not the first few
     if (zPos < -50) {
         if (Math.random() > 0.3) {
@@ -447,7 +514,7 @@ export class GameEngine {
       const diff = useGameStore.getState().difficultyLevel;
       
       // Starting position way out and high up
-      bossGroup.position.set(0, 10, -80);
+      bossGroup.position.set(0, 30, -100);
       
       this.scene.add(bossGroup);
       
@@ -456,8 +523,8 @@ export class GameEngine {
           type: 'boss',
           hp: 800 * diff,
           lane: 0,
-          zBase: -80, // Target Z
-          state: 'entering',
+          zBase: -80, // Target Z for 'entering'
+          state: 'intro',
           timer: 0
       });
   }
@@ -630,7 +697,27 @@ export class GameEngine {
     
     this.camera.lookAt(this.player.position.x * 0.5, this.player.position.y, this.player.position.z - 20);
     
-    this.renderer.render(this.scene, this.camera);
+    // Dynamic post-processing effects
+    const store = useGameStore.getState();
+    const hpRatio = store.hp / store.maxHp;
+    
+    let targetBloom = 0.8;
+    let targetRgbShift = 0.0015;
+    
+    if (store.isBulletTime) {
+        targetBloom += 1.5;
+        targetRgbShift += 0.008;
+    }
+    
+    if (hpRatio < 0.3) {
+        targetBloom += 0.5;
+        targetRgbShift += 0.005 + Math.sin(this.runTime * 10) * 0.002;
+    }
+    
+    this.bloomPass.strength += (targetBloom - this.bloomPass.strength) * dtRaw * 5;
+    this.rgbShiftPass.uniforms['amount'].value += (targetRgbShift - this.rgbShiftPass.uniforms['amount'].value) * dtRaw * 5;
+    
+    this.composer.render();
   }
 
   update(dt: number) {
@@ -647,6 +734,14 @@ export class GameEngine {
     // Powerups tick
     if (store.activePowerup.timeLeft > 0) {
         const nextTime = store.activePowerup.timeLeft - dt;
+        
+        // Expiry tick warning
+        if (nextTime <= 3.0 && nextTime > 0) {
+            if (Math.floor(store.activePowerup.timeLeft) !== Math.floor(nextTime)) {
+                audioManager.playPowerupWarning();
+            }
+        }
+        
         if (nextTime <= 0) {
             store.setGameplayState({ activePowerup: { type: null, timeLeft: 0 }});
         } else {
@@ -870,48 +965,63 @@ export class GameEngine {
                 continue;
             }
         } else if (e.type === 'boss') {
-            // Boss movement
-            e.mesh.position.x = Math.sin(e.timer * 0.5) * LANE_WIDTH * 1.5;
-            e.mesh.position.y = 6 + Math.sin(e.timer * 2) * 2;
-            
             const ring = e.mesh.getObjectByName('bossRing');
             if (ring) {
                 ring.rotation.z += dt * 2;
                 ring.rotation.x = Math.sin(e.timer) * 0.2;
             }
             
-            if (e.state === 'entering') {
-                e.zBase = Math.min(-40, e.zBase + dt * 10);
-                e.mesh.position.z = e.zBase;
-                if (e.zBase >= -40) e.state = 'attacking';
-            } else if (e.state === 'attacking') {
-                e.mesh.position.z = e.zBase + Math.sin(e.timer * 0.3) * 5;
+            if (e.state === 'intro') {
+                // Dramatic descent and spin
+                e.mesh.position.y = THREE.MathUtils.lerp(e.mesh.position.y, 6, dt * 2);
+                e.mesh.position.z = THREE.MathUtils.lerp(e.mesh.position.z, -80, dt * 2);
                 
-                // Boss attack pattern
-                if (e.timer > 1.5 - (diffLevel * 0.1)) {
-                    e.timer = 0;
+                // Spin around Y axis rapidly, then slow down
+                e.mesh.rotation.y += dt * (15 * Math.max(0, 2.5 - e.timer));
+                
+                if (e.timer > 3.0) {
+                    e.state = 'entering';
+                    e.mesh.rotation.y = 0;
+                    e.timer = 0; // Reset timer for entering state
+                }
+            } else {
+                // Normal movement for entering/attacking state
+                e.mesh.position.x = Math.sin(e.timer * 0.5) * LANE_WIDTH * 1.5;
+                e.mesh.position.y = 6 + Math.sin(e.timer * 2) * 2;
+                
+                if (e.state === 'entering') {
+                    e.zBase = Math.min(-40, e.zBase + dt * 10);
+                    e.mesh.position.z = e.zBase;
+                    if (e.zBase >= -40) e.state = 'attacking';
+                } else if (e.state === 'attacking') {
+                    e.mesh.position.z = e.zBase + Math.sin(e.timer * 0.3) * 5;
                     
-                    // High-damage sweeping attack
-                    for(let k = -1; k <= 1; k++) {
-                        setTimeout(() => {
-                            if (store.gameState !== 'PLAYING') return;
-                            const projGeo = new THREE.BoxGeometry(1, 0.5, 2);
-                            const projMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
-                            const proj = new THREE.Mesh(projGeo, projMat);
-                            
-                            const spawnPos = new THREE.Vector3();
-                            e.mesh.getWorldPosition(spawnPos);
-                            spawnPos.y -= 2; // Under the boss
-                            proj.position.copy(spawnPos);
-                            
-                            const pPos = this.player.position.clone();
-                            pPos.x += k * LANE_WIDTH * 1.2;
-                            const dir = pPos.sub(spawnPos).normalize();
-                            
-                            this.scene.add(proj);
-                            // Projectiles marked as not from player, with high size/damage
-                            this.projectiles.push({ mesh: proj, velocity: dir.multiplyScalar(20 + 5*diffLevel), isPlayer: false, life: 5.0 });
-                        }, (k + 1) * 150);
+                    // Boss attack pattern
+                    if (e.timer > 1.5 - (diffLevel * 0.1)) {
+                        e.timer = 0;
+                        
+                        // High-damage sweeping attack
+                        for(let k = -1; k <= 1; k++) {
+                            setTimeout(() => {
+                                if (store.gameState !== 'PLAYING') return;
+                                const projGeo = new THREE.BoxGeometry(1, 0.5, 2);
+                                const projMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+                                const proj = new THREE.Mesh(projGeo, projMat);
+                                
+                                const spawnPos = new THREE.Vector3();
+                                e.mesh.getWorldPosition(spawnPos);
+                                spawnPos.y -= 2; // Under the boss
+                                proj.position.copy(spawnPos);
+                                
+                                const pPos = this.player.position.clone();
+                                pPos.x += k * LANE_WIDTH * 1.2;
+                                const dir = pPos.sub(spawnPos).normalize();
+                                
+                                this.scene.add(proj);
+                                // Projectiles marked as not from player, with high size/damage
+                                this.projectiles.push({ mesh: proj, velocity: dir.multiplyScalar(20 + 5*diffLevel), isPlayer: false, life: 5.0 });
+                            }, (k + 1) * 150);
+                        }
                     }
                 }
             }
@@ -952,14 +1062,17 @@ export class GameEngine {
         const pBox = new THREE.Box3().setFromObject(p.mesh);
         if (playerBoxExpanded.intersectsBox(pBox)) {
             // Picked up!
-            audioManager.playCoin();
             if (p.type === 'health') {
+                audioManager.playHealthPickup();
                 store.setGameplayState({ hp: Math.min(store.maxHp, store.hp + 30) });
             } else if (p.type === 'shield') {
+                audioManager.playShieldPickup();
                 store.setGameplayState({ activePowerup: { type: 'SHIELD', timeLeft: 15 }});
             } else if (p.type === 'rapid') {
+                audioManager.playRapidFirePickup();
                 store.setGameplayState({ activePowerup: { type: 'RAPID_FIRE', timeLeft: 10 }});
             } else if (p.type === 'coin') {
+                audioManager.playCoin();
                 store.addCoins(10);
             }
             p.mesh.parent?.remove(p.mesh);
