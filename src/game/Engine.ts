@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useGameStore, WeaponType } from '../store/useGameStore';
 import { audioManager } from './AudioManager';
 import { LANE_WIDTH, FORWARD_SPEED, GRAVITY, JUMP_VELOCITY, TRAIN_LENGTH, COLORS, MAX_TRAINS, TRAIN_GAP, WEAPONS } from './constants';
@@ -47,7 +48,7 @@ export class GameEngine {
   isRunning: boolean = false;
   
   // Game Objects
-  player: THREE.Mesh;
+  player: THREE.Object3D;
   trains: THREE.Group[] = [];
   enemies: Enemy[] = [];
   particles: Particle[] = [];
@@ -122,19 +123,51 @@ export class GameEngine {
      * ========================================================= */
 
     // Setup Player
+    this.player = new THREE.Group();
+    this.player.position.y = 1;
+
+    // Default Placeholder Box
     const playerGeo = new THREE.BoxGeometry(1, 2, 1);
     const playerMat = new THREE.MeshStandardMaterial({ color: COLORS.player, emissive: 0x005544 });
-    this.player = new THREE.Mesh(playerGeo, playerMat);
-    this.player.position.y = 1;
-    
-    // Add visual "Gun" to player
+    const placeholder = new THREE.Mesh(playerGeo, playerMat);
+    this.player.add(placeholder);
+
+    // Add visual "Gun" to placeholder
     const gunGeo = new THREE.BoxGeometry(0.3, 0.4, 1.2);
     const gunMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
     const gun = new THREE.Mesh(gunGeo, gunMat);
     gun.position.set(0.65, 0.2, -0.5); // attached to right side
-    this.player.add(gun);
-    
+    placeholder.add(gun);
+
     this.scene.add(this.player);
+
+    // Async GLTF Loading
+    const loader = new GLTFLoader();
+    // Assuming the user places 'maincaracter.glb' in the vite public folder -> served at /maincaracter.glb
+    loader.load(
+      '/maincaracter.glb',
+      (gltf) => {
+        console.log('Player model loaded successfully');
+        // Remove placeholder and add the loaded model
+        this.player.remove(placeholder);
+        
+        const model = gltf.scene;
+        
+        // Optional: you may need to adjust scale, rotation & position of the model to fit
+        model.scale.set(1, 1, 1); 
+        model.position.set(0, -1, 0); // shift down if pivot is at center instead of feet
+        model.rotation.y = Math.PI; // Face forward
+        
+        // Let's keep the gun on the real model too
+        model.add(gun); 
+        
+        this.player.add(model);
+      },
+      undefined,
+      (err) => {
+        console.warn('Could not load maincaracter.glb, using placeholder. Make sure it is placed in the "public" directory.', err);
+      }
+    );
     
     // Setup City Scenery Background
     this.scenery = new THREE.Group();
