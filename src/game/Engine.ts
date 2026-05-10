@@ -106,6 +106,12 @@ export class GameEngine {
     const ambLight = new THREE.AmbientLight(0x404040, 2);
     this.scene.add(ambLight);
     
+    // Add sun light for better model shading
+    const sunLight = new THREE.DirectionalLight(0xffffff, 2);
+    sunLight.position.set(10, 20, 10);
+    sunLight.lookAt(0, 0, 0);
+    this.scene.add(sunLight);
+    
     /* =========================================================
      * HOW TO REPLACE CUBES WITH REAL 3D MODELS:
      * 1. Import GLTFLoader:
@@ -152,19 +158,57 @@ export class GameEngine {
         
         const model = gltf.scene;
         
-        // Optional: you may need to adjust scale, rotation & position of the model to fit
-        model.scale.set(1, 1, 1); 
-        model.position.set(0, -1, 0); // shift down if pivot is at center instead of feet
+        // Auto-scale and center the model to fit a 1x2x1 bounding box
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        
+        if (size.y > 0) {
+            const scale = 2.0 / size.y; // Target height = 2 units
+            model.scale.set(scale, scale, scale);
+            
+            // Recalculate box after scaling
+            const scaledBox = new THREE.Box3().setFromObject(model);
+            const center = scaledBox.getCenter(new THREE.Vector3());
+            
+            // Re-center around X and Z, and place the bottom at Y = -1 (local to the player group)
+            model.position.x -= center.x;
+            model.position.y += (-1 - scaledBox.min.y);
+            model.position.z -= center.z;
+        } else {
+            model.scale.set(1, 1, 1); 
+            model.position.set(0, -1, 0);
+        }
+        
         model.rotation.y = Math.PI; // Face forward
+        
+        // Make sure its materials render correctly with lighting
+        model.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+                const mesh = child as THREE.Mesh;
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                // Avoid complete blackness if the model has faulty materials
+                if (mesh.material) {
+                    // if it's an array of materials, we leave it, otherwise ensure rough lighting
+                    if (!Array.isArray(mesh.material)) {
+                        mesh.material.needsUpdate = true;
+                    }
+                }
+            }
+        });
         
         // Let's keep the gun on the real model too
         model.add(gun); 
         
         this.player.add(model);
       },
-      undefined,
+      (progress) => {
+         console.log(`Loading model: ${Math.round((progress.loaded / progress.total) * 100)}%`);
+      },
       (err) => {
-        console.warn('Could not load maincaracter.glb, using placeholder. Make sure it is placed in the "public" directory.', err);
+        console.error('Could not load maincaracter.glb, using placeholder.', err);
+        // Put placeholder back if it fails
+        this.player.add(placeholder);
       }
     );
     
