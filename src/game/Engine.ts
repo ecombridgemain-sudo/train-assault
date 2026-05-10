@@ -151,7 +151,7 @@ export class GameEngine {
     const loader = new GLTFLoader();
     // Load local file from the /public folder
     loader.load(
-      '/maincaracter.glb',
+      '/illiakan_v1.glb',
       (gltf) => {
         console.log('Player model loaded successfully');
         // Remove placeholder and add the loaded model
