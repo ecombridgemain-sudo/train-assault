@@ -387,7 +387,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="relative w-full h-screen bg-[#0a0a0b] text-[#e2e2e2] font-sans overflow-hidden flex flex-col items-stretch select-none">
+    <div className="relative w-full h-screen bg-[#0a0a0b] text-[#e2e2e2] font-sans overflow-hidden flex flex-col items-stretch select-none touch-none">
       {/* Background 3D Lane Perspective Simulation (visible in Menu) */}
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
         <div className="absolute inset-0 flex justify-center" style={{ perspective: '800px' }}>

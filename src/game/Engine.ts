@@ -645,9 +645,14 @@ export class GameEngine {
       this.yVelocity -= GRAVITY * dt;
       
       if (this.player.position.y <= 1 && overTrain && this.yVelocity < 0) {
-        this.player.position.y = 1;
-        this.isJumping = false;
-        this.yVelocity = 0;
+        if (this.player.position.y > 0) {
+          this.player.position.y = 1;
+          this.isJumping = false;
+          this.yVelocity = 0;
+        } else {
+          // Snagged the front face of the train!
+          this.die();
+        }
       }
     }
     
