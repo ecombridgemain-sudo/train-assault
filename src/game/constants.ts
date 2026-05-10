@@ -3,7 +3,7 @@ export const GRAVITY = 30;
 export const JUMP_VELOCITY = 15;
 export const FORWARD_SPEED = 20; // Units per second (base)
 export const TRAIN_LENGTH = 40;
-export const BASE_TRAIN_GAP = 5;
+export const BASE_TRAIN_GAP = 0;
 export const MAX_TRAINS = 5;
 
 // Colors
@@ -14,7 +14,7 @@ export const COLORS = {
   enemyShielder: 0x666666,
   enemyGunner: 0xffff00,
   enemyBomber: 0xff6600,
-  train: 0x222222,
+  train: 0x555566,
   trainAccent: 0xffaa00,
   projectile: 0xffff00,
   bulletTrail: 0x00ffff,

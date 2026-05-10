@@ -97,8 +97,8 @@ export class GameEngine {
     
     // Setup Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0a1a);
-    this.scene.fog = new THREE.Fog(0x0a0a1a, 20, 150);
+    this.scene.background = new THREE.Color(0x0a0f1a);
+    this.scene.fog = new THREE.Fog(0x0a0f1a, 40, 250);
     
     // Setup Camera
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -244,18 +244,70 @@ export class GameEngine {
       }
     );
     
-    // Setup City Scenery Background
+    // Starfield Background
+    const starsGeo = new THREE.BufferGeometry();
+    const starsCount = 2000;
+    const posArray = new Float32Array(starsCount * 3);
+    for(let i=0; i<starsCount*3; i++) {
+        posArray[i] = (Math.random() - 0.5) * 800; // Spread wide
+    }
+    starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const starsMat = new THREE.PointsMaterial({size: 0.5, color: 0xddddff, transparent: true, opacity: 0.8});
+    const starMesh = new THREE.Points(starsGeo, starsMat);
+    this.scene.add(starMesh);
+
+    // Distant sun
+    const sunGeo = new THREE.CircleGeometry(20, 32);
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffeebb, fog: false, transparent: true, opacity: 0.9 });
+    const sun = new THREE.Mesh(sunGeo, sunMat);
+    sun.position.set(10, 60, -400);
+    this.scene.add(sun);
+
+    // Setup Space Scenery
     this.scenery = new THREE.Group();
     this.scene.add(this.scenery);
-    for (let i = 0; i < 40; i++) {
-        const height = 10 + Math.random() * 40;
-        const geo = new THREE.BoxGeometry(5, height, 5);
-        const mat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, emissive: 0x050511 });
-        const bldg = new THREE.Mesh(geo, mat);
-        const z = (Math.random() - 0.5) * 300;
-        const x = (Math.random() > 0.5 ? 1 : -1) * (30 + Math.random() * 40);
-        bldg.position.set(x, height / 2 - 5, z);
-        this.scenery.add(bldg);
+    
+    // Setup floating black pillars
+    for (let i = 0; i < 30; i++) {
+        const pillarGeo = new THREE.BoxGeometry(2, 25, 2);
+        const pillarMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, metalness: 0.2 });
+        const mesh = new THREE.Mesh(pillarGeo, pillarMat);
+        
+        const sign = i % 2 === 0 ? 1 : -1;
+        const z = -Math.random() * 300;
+        const x = sign * (12 + Math.random() * 8);
+        const y = (Math.random() - 0.5) * 15 + 10;
+        mesh.position.set(x, y, z);
+        this.scenery.add(mesh);
+    }
+    
+    // Setup Space Wireframes with crystals
+    for (let i = 0; i < 20; i++) {
+        const group = new THREE.Group();
+        
+        // Use thick-looking wireframes but wireframe mod is thinnest.
+        // I will use some intersecting boxes to create thick "frame" look
+        const beamMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.6, metalness: 0.3 });
+        
+        const b1 = new THREE.Mesh(new THREE.BoxGeometry(25, 2, 2), beamMat);
+        const b2 = new THREE.Mesh(new THREE.BoxGeometry(2, 25, 2), beamMat);
+        const b3 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 25), beamMat);
+        group.add(b1); group.add(b2); group.add(b3);
+        
+        // Crystal inside
+        const crysGeo = new THREE.IcosahedronGeometry(8, 1);
+        const crysMat = new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.9, roughness: 0.1, flatShading: true });
+        const crys = new THREE.Mesh(crysGeo, crysMat);
+        group.add(crys);
+        
+        const sign = Math.random() > 0.5 ? 1 : -1;
+        const z = -Math.random() * 300;
+        const x = sign * (30 + Math.random() * 20);
+        const y = Math.random() * 20;
+        
+        group.position.set(x, y, z);
+        group.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        this.scenery.add(group);
     }
 
     this.clock = new THREE.Clock();
