@@ -50,7 +50,7 @@ interface StoreState {
   setGameplayState: (state: Partial<{ 
     hp: number, maxHp: number, score: number, combo: number, 
     bulletTimeMeter: number, isBulletTime: boolean, distance: number,
-    difficultyLevel: number, activePowerup: { type: string, timeLeft: number }
+    difficultyLevel: number, activePowerup: { type: 'SHIELD' | 'DOUBLE_COIN' | 'RAPID_FIRE' | 'DOUBLE_WEAPONS' | null, timeLeft: number }
   }>) => void;
 }
 

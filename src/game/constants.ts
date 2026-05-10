@@ -4,7 +4,7 @@ export const JUMP_VELOCITY = 15;
 export const FORWARD_SPEED = 20; // Units per second (base)
 export const TRAIN_LENGTH = 40;
 export const BASE_TRAIN_GAP = 0;
-export const MAX_TRAINS = 5;
+export const MAX_TRAINS = 15;
 
 // Colors
 export const COLORS = {

@@ -13,7 +13,7 @@ import { LANE_WIDTH, FORWARD_SPEED, GRAVITY, JUMP_VELOCITY, TRAIN_LENGTH, COLORS
 type Lane = -1 | 0 | 1;
 
 interface Enemy {
-  mesh: THREE.Mesh;
+  mesh: THREE.Mesh | THREE.Group;
   type: 'grunt' | 'dodger' | 'shielder' | 'gunner' | 'bomber' | 'boss';
   hp: number;
   lane: Lane;
@@ -91,6 +91,11 @@ export class GameEngine {
   
   // Environment
   scenery: THREE.Group;
+  sceneryInstances: any[] = [];
+  pillarInstanced!: THREE.InstancedMesh;
+  crysInstanced!: THREE.InstancedMesh;
+  frameInstanced!: THREE.InstancedMesh;
+  innerFrameInstanced!: THREE.InstancedMesh;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -98,7 +103,7 @@ export class GameEngine {
     // Setup Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0f1a);
-    this.scene.fog = new THREE.Fog(0x0a0f1a, 40, 250);
+    this.scene.fog = new THREE.Fog(0x0a0f1a, 100, 400);
     
     // Setup Camera
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -134,7 +139,16 @@ export class GameEngine {
     dirLight.position.set(10, 20, 10);
     this.scene.add(dirLight);
     
-    const ambLight = new THREE.AmbientLight(0x404040, 2);
+    // Add some colored rim lighting for synthwave look
+    const rimLight1 = new THREE.DirectionalLight(0xff00ff, 1.5);
+    rimLight1.position.set(-20, 10, -10);
+    this.scene.add(rimLight1);
+
+    const rimLight2 = new THREE.DirectionalLight(0x00ffff, 1.5);
+    rimLight2.position.set(20, 10, -10);
+    this.scene.add(rimLight2);
+    
+    const ambLight = new THREE.AmbientLight(0x1a1a2e, 1.5);
     this.scene.add(ambLight);
     
     // Add sun light for better model shading
@@ -252,7 +266,7 @@ export class GameEngine {
         posArray[i] = (Math.random() - 0.5) * 800; // Spread wide
     }
     starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const starsMat = new THREE.PointsMaterial({size: 0.5, color: 0xddddff, transparent: true, opacity: 0.8});
+    const starsMat = new THREE.PointsMaterial({size: 0.5, color: 0xddddff, transparent: true, opacity: 0.8, fog: false});
     const starMesh = new THREE.Points(starsGeo, starsMat);
     this.scene.add(starMesh);
 
@@ -267,48 +281,87 @@ export class GameEngine {
     this.scenery = new THREE.Group();
     this.scene.add(this.scenery);
     
-    // Setup floating black pillars
-    for (let i = 0; i < 30; i++) {
-        const pillarGeo = new THREE.BoxGeometry(2, 25, 2);
-        const pillarMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, metalness: 0.2 });
-        const mesh = new THREE.Mesh(pillarGeo, pillarMat);
-        
+    // Instanced Black Pillars
+    const numPillars = 40;
+    const pillarGeo = new THREE.BoxGeometry(2, 25, 2);
+    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, metalness: 0.2 });
+    const pillarInstanced = new THREE.InstancedMesh(pillarGeo, pillarMat, numPillars);
+    
+    // Instanced Crystals & Wireframes
+    const numWireframes = 30;
+    const crysGeo = new THREE.IcosahedronGeometry(8, 1);
+    const crysMat = new THREE.MeshStandardMaterial({ 
+        color: 0x8899aa, 
+        emissive: 0x223344,
+        metalness: 0.8, 
+        roughness: 0.2, 
+        flatShading: true
+    });
+    const crysInstanced = new THREE.InstancedMesh(crysGeo, crysMat, numWireframes);
+    
+    const frameGeo = new THREE.BoxGeometry(25, 25, 25);
+    const innerFrameGeo = new THREE.BoxGeometry(18, 18, 18);
+    const wireMat = new THREE.MeshBasicMaterial({ color: 0x445566, wireframe: true, transparent: true, opacity: 0.5 });
+    
+    const frameInstanced = new THREE.InstancedMesh(frameGeo, wireMat, numWireframes);
+    const innerFrameInstanced = new THREE.InstancedMesh(innerFrameGeo, wireMat, numWireframes);
+    
+    // Store data for moving instances
+    this.sceneryInstances = [];
+    
+    for (let i = 0; i < numPillars; i++) {
         const sign = i % 2 === 0 ? 1 : -1;
-        const z = -Math.random() * 300;
+        const z = -Math.random() * 450;
         const x = sign * (12 + Math.random() * 8);
         const y = (Math.random() - 0.5) * 15 + 10;
-        mesh.position.set(x, y, z);
-        this.scenery.add(mesh);
+        
+        this.sceneryInstances.push({
+            type: 'pillar', index: i, pos: new THREE.Vector3(x, y, z), rot: new THREE.Euler(), rotSpeed: new THREE.Euler()
+        });
     }
     
-    // Setup Space Wireframes with crystals
-    for (let i = 0; i < 20; i++) {
-        const group = new THREE.Group();
-        
-        // Use thick-looking wireframes but wireframe mod is thinnest.
-        // I will use some intersecting boxes to create thick "frame" look
-        const beamMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.6, metalness: 0.3 });
-        
-        const b1 = new THREE.Mesh(new THREE.BoxGeometry(25, 2, 2), beamMat);
-        const b2 = new THREE.Mesh(new THREE.BoxGeometry(2, 25, 2), beamMat);
-        const b3 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 25), beamMat);
-        group.add(b1); group.add(b2); group.add(b3);
-        
-        // Crystal inside
-        const crysGeo = new THREE.IcosahedronGeometry(8, 1);
-        const crysMat = new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.9, roughness: 0.1, flatShading: true });
-        const crys = new THREE.Mesh(crysGeo, crysMat);
-        group.add(crys);
-        
+    for (let i = 0; i < numWireframes; i++) {
         const sign = Math.random() > 0.5 ? 1 : -1;
-        const z = -Math.random() * 300;
-        const x = sign * (30 + Math.random() * 20);
-        const y = Math.random() * 20;
+        const z = -Math.random() * 450; 
+        const x = sign * (40 + Math.random() * 30);
+        const y = (Math.random() - 0.5) * 40;
         
-        group.position.set(x, y, z);
-        group.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-        this.scenery.add(group);
+        const rot = new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        const rotSpeed = new THREE.Euler((Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2);
+        
+        this.sceneryInstances.push({
+            type: 'wireframe', index: i, pos: new THREE.Vector3(x, y, z), rot, rotSpeed
+        });
     }
+    
+    this.pillarInstanced = pillarInstanced;
+    this.crysInstanced = crysInstanced;
+    this.frameInstanced = frameInstanced;
+    this.innerFrameInstanced = innerFrameInstanced;
+    
+    // Set initial matrices
+    const dummy = new THREE.Object3D();
+    for (const inst of this.sceneryInstances) {
+        dummy.position.copy(inst.pos);
+        if (inst.type === 'pillar') {
+            dummy.updateMatrix();
+            this.pillarInstanced.setMatrixAt(inst.index, dummy.matrix);
+        } else if (inst.type === 'wireframe') {
+            dummy.rotation.copy(inst.rot);
+            dummy.updateMatrix();
+            this.crysInstanced.setMatrixAt(inst.index, dummy.matrix);
+            this.frameInstanced.setMatrixAt(inst.index, dummy.matrix);
+            
+            dummy.rotation.set(inst.rot.x + Math.PI/4, inst.rot.y + Math.PI/4, inst.rot.z);
+            dummy.updateMatrix();
+            this.innerFrameInstanced.setMatrixAt(inst.index, dummy.matrix);
+        }
+    }
+    
+    this.scenery.add(pillarInstanced);
+    this.scenery.add(crysInstanced);
+    this.scenery.add(frameInstanced);
+    this.scenery.add(innerFrameInstanced);
 
     this.clock = new THREE.Clock();
     
@@ -882,7 +935,7 @@ export class GameEngine {
       const t = this.trains[i];
       t.position.z += moveDist;
       
-      if (t.position.z > 20) {
+      if (t.position.z > 80) {
         this.scene.remove(t);
         this.trains.splice(i, 1);
         needsNewTrain = true;
@@ -902,12 +955,44 @@ export class GameEngine {
     }
     
     // 3.5 Move Scenery for Parallax Effect
-    for (const bldg of this.scenery.children) {
-        bldg.position.z += moveDist * 0.8; // Move slightly slower for parallax
-        if (bldg.position.z > 50) {
-            bldg.position.z -= 300;
+    let dummy = new THREE.Object3D();
+    const instUpdate = { pillar: false, crys: false, frame: false, inner: false };
+    
+    for (const inst of this.sceneryInstances) {
+        inst.pos.z += moveDist * 0.8;
+        if (inst.pos.z > 50) {
+            inst.pos.z -= 450;
+        }
+        
+        inst.rot.x += inst.rotSpeed.x * dt;
+        inst.rot.y += inst.rotSpeed.y * dt;
+        inst.rot.z += inst.rotSpeed.z * dt;
+        
+        dummy.position.copy(inst.pos);
+        
+        if (inst.type === 'pillar') {
+            dummy.updateMatrix();
+            this.pillarInstanced.setMatrixAt(inst.index, dummy.matrix);
+            instUpdate.pillar = true;
+        } else if (inst.type === 'wireframe') {
+            dummy.rotation.copy(inst.rot);
+            dummy.updateMatrix();
+            this.crysInstanced.setMatrixAt(inst.index, dummy.matrix);
+            this.frameInstanced.setMatrixAt(inst.index, dummy.matrix);
+            instUpdate.crys = true;
+            instUpdate.frame = true;
+            
+            dummy.rotation.set(inst.rot.x + Math.PI/4, inst.rot.y + Math.PI/4, inst.rot.z);
+            dummy.updateMatrix();
+            this.innerFrameInstanced.setMatrixAt(inst.index, dummy.matrix);
+            instUpdate.inner = true;
         }
     }
+    
+    if (instUpdate.pillar) this.pillarInstanced.instanceMatrix.needsUpdate = true;
+    if (instUpdate.crys) this.crysInstanced.instanceMatrix.needsUpdate = true;
+    if (instUpdate.frame) this.frameInstanced.instanceMatrix.needsUpdate = true;
+    if (instUpdate.inner) this.innerFrameInstanced.instanceMatrix.needsUpdate = true;
     
     // 4. Update Projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
