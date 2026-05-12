@@ -18,6 +18,8 @@ interface PersistentData {
     masterVolume: number;
     musicVolume: number;
     sfxVolume: number;
+    postProcessing: boolean;
+    theme: 'DESERT' | 'SNOW' | 'SPRING';
   };
 }
 
@@ -70,6 +72,8 @@ const loadPersistentData = (): PersistentData => {
       masterVolume: 50,
       musicVolume: 50,
       sfxVolume: 50,
+      postProcessing: true,
+      theme: 'DESERT',
     }
   };
   if (saved) {

@@ -8,21 +8,21 @@ export const MAX_TRAINS = 15;
 
 // Colors
 export const COLORS = {
-  player: 0x00ffcc,
-  enemyGrunt: 0xff3333,
-  enemyDodger: 0xff00ff,
-  enemyShielder: 0x666666,
-  enemyGunner: 0xffff00,
-  enemyBomber: 0xff6600,
-  train: 0x555566,
-  trainAccent: 0xffaa00,
-  projectile: 0xffff00,
-  bulletTrail: 0x00ffff,
-  coin: 0xffd700,
-  powerupHealth: 0x00ff00,
-  powerupShield: 0x00ffff,
-  powerupRapid: 0xff00ff,
-  powerupDouble: 0xffaa00,
+  player: 0x3b82f6,      // Blue soldier
+  enemyGrunt: 0xe11d48,  // Red enemies
+  enemyDodger: 0x9333ea, // Purple
+  enemyShielder: 0x475569,// Slate
+  enemyGunner: 0xd97706, // Amber
+  enemyBomber: 0xeab308, // Yellow
+  train: 0xffffff,
+  trainAccent: 0xe2e8f0,
+  projectile: 0xfef08a,
+  bulletTrail: 0x94a3b8,
+  coin: 0xfde047,
+  powerupHealth: 0x22c55e,
+  powerupShield: 0x06b6d4,
+  powerupRapid: 0xd946ef,
+  powerupDouble: 0xf97316,
 };
 
 export const WEAPONS = {

@@ -258,7 +258,37 @@ const SettingsMenu = () => {
                 </button>
             </div>
             
-            <div className="flex flex-col gap-12 max-w-2xl mx-auto w-full">
+            <div className="flex flex-col gap-12 max-w-2xl mx-auto w-full overflow-y-auto pr-4 pb-20">
+                <div className="flex flex-col gap-4">
+                   <div className="flex justify-between items-center">
+                     <span className="text-xl font-bold tracking-widest uppercase">Theme Environment</span>
+                   </div>
+                   <div className="flex gap-4">
+                     {['DESERT', 'SNOW', 'SPRING'].map(theme => (
+                         <button 
+                           key={theme}
+                           onClick={() => updateSettings({ theme: theme as 'DESERT'|'SNOW'|'SPRING' })}
+                           className={`flex-1 py-3 border-2 font-bold uppercase tracking-widest skew-x-[-12deg] transition-colors ${persistent.settings?.theme === theme ? 'bg-white text-black border-white' : 'border-white/20 text-white/70 hover:border-white/50'}`}
+                         >
+                            <span className="skew-x-[12deg] block">{theme}</span>
+                         </button>
+                     ))}
+                   </div>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                   <div className="flex justify-between items-center">
+                     <span className="text-xl font-bold tracking-widest uppercase">Post-Processing (Bloom & Effects)</span>
+                     <button 
+                        onClick={() => updateSettings({ postProcessing: !persistent.settings?.postProcessing })}
+                        className={`px-6 py-2 border-2 font-bold uppercase tracking-widest skew-x-[-12deg] transition-colors ${persistent.settings?.postProcessing !== false ? 'bg-green-500 border-green-500 text-black' : 'border-red-500 text-red-500 hover:bg-red-500/20'}`}
+                     >
+                       <span className="skew-x-[12deg] block">{persistent.settings?.postProcessing !== false ? 'ON' : 'OFF'}</span>
+                     </button>
+                   </div>
+                   <p className="text-sm text-gray-400">Toggle Bloom and Chromatic Aberration. Disable for higher performance and cleaner look.</p>
+                </div>
+
                 <div className="flex flex-col gap-4">
                    <div className="flex justify-between items-center">
                      <span className="text-xl font-bold tracking-widest uppercase">Master Volume</span>
