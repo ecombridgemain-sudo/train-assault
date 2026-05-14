@@ -10,10 +10,21 @@ let gameEngine: GameEngine | null = null;
 // --- Components ---
 
 const HUD = () => {
-  const { hp, maxHp, score, combo, bulletTimeMeter, isBulletTime, activePowerup, difficultyLevel } = useGameStore();
+  const { hp, maxHp, score, combo, bulletTimeMeter, isBulletTime, activePowerup, difficultyLevel, lastHitTime } = useGameStore();
   
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between z-20" style={{ fontFamily: 'Orbitron, sans-serif' }}>
+    <>
+      {lastHitTime > 0 && (
+        <motion.div 
+          key={lastHitTime}
+          initial={{ opacity: 0.8 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="absolute inset-0 pointer-events-none bg-red-600/30 mix-blend-overlay z-10"
+          style={{ boxShadow: 'inset 0 0 150px rgba(255, 0, 0, 0.8)' }}
+        />
+      )}
+      <div className="absolute inset-0 pointer-events-none flex flex-col justify-between z-20" style={{ fontFamily: 'Orbitron, sans-serif' }}>
       {/* Top HUD Bar */}
       <nav className="relative h-auto md:h-24 py-3 md:py-0 flex items-start md:items-center justify-between px-3 md:px-8 bg-gradient-to-b from-black/80 to-transparent">
         
@@ -95,6 +106,7 @@ const HUD = () => {
         ARROWS: Move • SPACE: Fire • SHIFT: Focus (Slow-Mo)
       </div>
     </div>
+    </>
   );
 };
 
@@ -282,10 +294,10 @@ const SettingsMenu = () => {
                      <span className="text-xl font-bold tracking-widest uppercase">Theme Environment</span>
                    </div>
                    <div className="flex gap-4">
-                     {['DESERT', 'SNOW', 'SPRING'].map(theme => (
+                     {['CYBER', 'INFERNO', 'TOXIC'].map(theme => (
                          <button 
                            key={theme}
-                           onClick={() => updateSettings({ theme: theme as 'DESERT'|'SNOW'|'SPRING' })}
+                           onClick={() => updateSettings({ theme: theme as 'CYBER'|'INFERNO'|'TOXIC' })}
                            className={`flex-1 py-3 border-2 font-bold uppercase tracking-widest skew-x-[-12deg] transition-colors ${persistent.settings?.theme === theme ? 'bg-white text-black border-white' : 'border-white/20 text-white/70 hover:border-white/50'}`}
                          >
                             <span className="skew-x-[12deg] block">{theme}</span>
@@ -439,56 +451,101 @@ const Missions = () => {
 // --- App Root ---
 
 const MobileControls = () => {
+  const [touchStart, setTouchStart] = useState<{ x: number, y: number, time: number } | null>(null);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const bulletTimeMeter = useGameStore(state => state.bulletTimeMeter);
+
   const handleAction = (action: string, isDown: boolean) => {
     if (!gameEngine) return;
-    if (isDown) {
-      if (action === 'left') gameEngine.switchLane(-1);
-      if (action === 'right') gameEngine.switchLane(1);
-      if (action === 'jump') gameEngine.jump();
-    }
     if (action === 'slowmo') {
       gameEngine.keys['ShiftLeft'] = isDown;
     }
-    if (action === 'shoot') {
-      gameEngine.isShooting = isDown;
-      if (isDown) gameEngine.attemptShoot();
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!gameEngine) return;
+    setTouchStart({ x: e.clientX, y: e.clientY, time: Date.now() });
+    setIsSwiping(false);
+    
+    // Tap to shoot
+    gameEngine.isShooting = true;
+    gameEngine.attemptShoot();
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!touchStart || !gameEngine) return;
+
+    const dx = e.clientX - touchStart.x;
+    const dy = e.clientY - touchStart.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > 30 && !isSwiping) {
+      setIsSwiping(true);
+      gameEngine.isShooting = false; // Cancel shooting if it's a swipe
+      
+      if (Math.abs(dx) > Math.abs(dy)) {
+        // Horizontal swipe
+        if (dx > 0) {
+          gameEngine.switchLane(1);
+        } else {
+          gameEngine.switchLane(-1);
+        }
+      } else {
+        // Vertical swipe
+        if (dy < 0) {
+          gameEngine.jump();
+        }
+      }
+      
+      // Reset to prevent repeated swipes continuously
+      setTouchStart({ x: e.clientX, y: e.clientY, time: Date.now() });
     }
   };
 
-  return (
-    <div className="absolute inset-x-0 bottom-8 md:bottom-12 px-4 flex justify-between pointer-events-none z-30 sm:hidden select-none touch-none">
-      {/* Left Controls - Movement */}
-      <div className="flex gap-1 pointer-events-auto items-end">
-        <button 
-          onPointerDown={(e) => { e.preventDefault(); handleAction('left', true); }}
-          className="w-14 h-14 bg-white/20 border border-white/30 rounded-full flex items-center justify-center text-white backdrop-blur-md active:bg-white/40 text-xl font-black"
-        >◀</button>
-        <button 
-          onPointerDown={(e) => { e.preventDefault(); handleAction('jump', true); }}
-          className="w-14 h-14 bg-white/20 border border-white/30 rounded-full flex items-center justify-center text-white backdrop-blur-md active:bg-white/40 text-xl font-black mb-4 mx-1"
-        >▲</button>
-        <button 
-          onPointerDown={(e) => { e.preventDefault(); handleAction('right', true); }}
-          className="w-14 h-14 bg-white/20 border border-white/30 rounded-full flex items-center justify-center text-white backdrop-blur-md active:bg-white/40 text-xl font-black"
-        >▶</button>
-      </div>
+  const handlePointerUp = () => {
+    if (gameEngine) {
+      gameEngine.isShooting = false;
+    }
+    setTouchStart(null);
+    setIsSwiping(false);
+  };
 
-      {/* Right Controls - Combat */}
-      <div className="flex gap-2 items-end pointer-events-auto">
-        <button 
-          onPointerDown={(e) => { e.preventDefault(); handleAction('slowmo', true); }}
-          onPointerUp={(e) => { e.preventDefault(); handleAction('slowmo', false); }}
-          onPointerLeave={(e) => { e.preventDefault(); handleAction('slowmo', false); }}
-          className="w-14 h-14 bg-blue-500/30 border border-blue-400/60 rounded-full flex items-center justify-center text-blue-300 backdrop-blur-md active:bg-blue-500/60 text-2xl"
-        >⏱</button>
-        <button 
-          onPointerDown={(e) => { e.preventDefault(); handleAction('shoot', true); }}
-          onPointerUp={(e) => { e.preventDefault(); handleAction('shoot', false); }}
-          onPointerLeave={(e) => { e.preventDefault(); handleAction('shoot', false); }}
-          className="w-16 h-16 bg-orange-500/30 border border-orange-500/60 rounded-full flex items-center justify-center text-orange-400 backdrop-blur-md text-3xl active:bg-orange-500/60"
-        >🔫</button>
+  return (
+    <>
+      <div 
+        className="absolute inset-x-0 bottom-0 top-24 pointer-events-auto z-20 sm:hidden touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      />
+      <div className="absolute inset-x-0 bottom-8 md:bottom-12 px-4 flex justify-between items-end pointer-events-none z-30 sm:hidden select-none touch-none">
+        {/* Left Side: Empty space, or maybe some visual cues */}
+        <div className="flex gap-1 items-end opacity-50">
+          <div className="text-white/50 text-[10px] uppercase font-bold tracking-widest pl-2">
+            Swipe to Move<br/>Tap to Shoot
+          </div>
+        </div>
+
+        {/* Focus Button */}
+        <div className="flex gap-2 items-end pointer-events-auto relative mt-auto">
+          <svg className="absolute -inset-1 w-[72px] h-[72px] -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(0,255,255,0.2)" strokeWidth="4" />
+            <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(0,255,255,1)" strokeWidth="4" strokeDasharray={301.6} strokeDashoffset={301.6 - (301.6 * Math.max(0, bulletTimeMeter)) / 100} className="transition-all duration-100" />
+          </svg>
+          <button 
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleAction('slowmo', true); }}
+            onPointerUp={(e) => { e.preventDefault(); e.stopPropagation(); handleAction('slowmo', false); }}
+            onPointerLeave={(e) => { e.preventDefault(); handleAction('slowmo', false); }}
+            disabled={bulletTimeMeter <= 0}
+            className="w-16 h-16 bg-cyan-600/30 border border-cyan-400/60 rounded-full flex flex-col items-center justify-center text-cyan-300 backdrop-blur-md active:bg-cyan-500/60 shadow-[0_0_15px_rgba(0,255,255,0.3)] transition-all disabled:opacity-50 disabled:grayscale"
+          >
+            <span className="text-2xl leading-none">⏱</span>
+            <span className="text-[10px] font-bold tracking-wider uppercase mt-1 text-white">{Math.floor(bulletTimeMeter)}%</span>
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

@@ -23,6 +23,7 @@ interface Enemy {
   zBase: number; // Base position on the train
   state: string;
   timer: number;
+  hitScale?: number;
   shotsFired?: number;
   shotDelayTimer?: number;
   modelParts?: {
@@ -85,7 +86,7 @@ export class GameEngine {
   runTime: number = 0;
   shootTimer: number = 0;
   isShooting: boolean = false;
-  lastBossScore: number = 0;
+  nextBossScore: number = 1500;
   invulnTimer: number = 0;
   
   // Player State
@@ -144,123 +145,123 @@ export class GameEngine {
 
   applyTheme() {
     const storeText = useGameStore.getState().persistent;
-    const theme = storeText.settings?.theme || 'DESERT';
+    const theme = storeText.settings?.theme || 'CYBER';
     const postProcessing = storeText.settings?.postProcessing !== false;
     
     // Toggle post processing
     this.bloomPass.enabled = postProcessing;
     this.rgbShiftPass.enabled = postProcessing;
 
-    if (theme === 'DESERT') {
-        const bg = new THREE.Color(0x0a0502);
+    if (theme === 'CYBER') {
+        const bg = new THREE.Color(0x050110);
         this.scene.background = bg;
-        this.scene.fog = new THREE.FogExp2(bg, 0.002);
-        this.dirLight.color.setHex(0xffddaa);
-        this.ambLight.color.setHex(0xffa555);
-        this.sunMat.color.setHex(0xff5500);
-        this.starsMat.color.setHex(0xffcc88);
-        this.starsMat.opacity = 0.8;
-        this.pillarMat.color.setHex(0x8a3f12);
-        this.crysMat.color.setHex(0xff8800);
-        this.crysMat.emissive.setHex(0xaa3300);
-        this.wireMat.color.setHex(0xff6600);
-        if (this.monolithMat) this.monolithMat.color.setHex(0x1a0f08);
-        if (this.ringMat) {
-            this.ringMat.color.setHex(0xffaa00);
-            this.ringMat.emissive.setHex(0xff5500);
-        }
-        if (this.tetraMat) {
-            this.tetraMat.color.setHex(0xaaaaaa);
-            this.tetraMat.emissive.setHex(0x221100);
-        }
-        if (this.mountainMat) {
-            this.mountainMat.uniforms.baseColor.value.setHex(0x2a140a);
-            this.mountainMat.uniforms.peakColor.value.setHex(0xff5500);
-        }
-    } else if (theme === 'SNOW') {
-        const bg = new THREE.Color(0x020510);
-        this.scene.background = bg;
-        this.scene.fog = new THREE.FogExp2(bg, 0.002);
-        this.dirLight.color.setHex(0xaaccff);
-        this.ambLight.color.setHex(0x4466aa);
-        this.sunMat.color.setHex(0x88ccff);
-        this.starsMat.color.setHex(0xffffff); // snowflakes
+        this.scene.fog = new THREE.FogExp2(bg, 0.003);
+        this.dirLight.color.setHex(0xff00ff);
+        this.ambLight.color.setHex(0x00f0ff);
+        this.sunMat.color.setHex(0x00f0ff);
+        this.starsMat.color.setHex(0xff00ff);
         this.starsMat.opacity = 0.9;
-        this.pillarMat.color.setHex(0x1a2b4c);
-        this.crysMat.color.setHex(0x44aaff);
-        this.crysMat.emissive.setHex(0x0055aa);
-        this.wireMat.color.setHex(0x0088ff);
-        if (this.monolithMat) this.monolithMat.color.setHex(0x0a1020);
+        this.pillarMat.color.setHex(0x100520);
+        this.crysMat.color.setHex(0x00f0ff);
+        this.crysMat.emissive.setHex(0x0055ff);
+        this.wireMat.color.setHex(0xff00ff);
+        if (this.monolithMat) this.monolithMat.color.setHex(0x0a0520);
         if (this.ringMat) {
-            this.ringMat.color.setHex(0x00f0ff);
-            this.ringMat.emissive.setHex(0x0088ff);
+            this.ringMat.color.setHex(0xff00ff);
+            this.ringMat.emissive.setHex(0x5500aa);
         }
         if (this.tetraMat) {
-            this.tetraMat.color.setHex(0x88bbff);
-            this.tetraMat.emissive.setHex(0x002255);
+            this.tetraMat.color.setHex(0x00f0ff);
+            this.tetraMat.emissive.setHex(0x0022aa);
         }
         if (this.mountainMat) {
-            this.mountainMat.uniforms.baseColor.value.setHex(0x0a152a);
-            this.mountainMat.uniforms.peakColor.value.setHex(0x00aaff);
+            this.mountainMat.uniforms.baseColor.value.setHex(0x0a051a);
+            this.mountainMat.uniforms.peakColor.value.setHex(0xff00ff);
         }
-    } else if (theme === 'SPRING') {
-        const bg = new THREE.Color(0x021005);
+    } else if (theme === 'INFERNO') {
+        const bg = new THREE.Color(0x1a0200);
         this.scene.background = bg;
-        this.scene.fog = new THREE.FogExp2(bg, 0.002);
-        this.dirLight.color.setHex(0xaaffaa);
-        this.ambLight.color.setHex(0x44aa44);
-        this.sunMat.color.setHex(0x55ff55);
-        this.starsMat.color.setHex(0xccffcc);
-        this.starsMat.opacity = 0.3; // Hide stars/dust in spring
-        this.pillarMat.color.setHex(0x1a4c2b);
-        this.crysMat.color.setHex(0x44ffaa);
-        this.crysMat.emissive.setHex(0x00aa55);
-        this.wireMat.color.setHex(0x00ff88);
-        if (this.monolithMat) this.monolithMat.color.setHex(0x0a2010);
+        this.scene.fog = new THREE.FogExp2(bg, 0.003);
+        this.dirLight.color.setHex(0xff3300);
+        this.ambLight.color.setHex(0xffaa00);
+        this.sunMat.color.setHex(0xff3300);
+        this.starsMat.color.setHex(0xffcc00); // embers
+        this.starsMat.opacity = 0.9;
+        this.pillarMat.color.setHex(0x2a0800);
+        this.crysMat.color.setHex(0xffaa00);
+        this.crysMat.emissive.setHex(0xaa3300);
+        this.wireMat.color.setHex(0xff5500);
+        if (this.monolithMat) this.monolithMat.color.setHex(0x200500);
         if (this.ringMat) {
-            this.ringMat.color.setHex(0x00ffaa);
-            this.ringMat.emissive.setHex(0x00aa55);
+            this.ringMat.color.setHex(0xff5500);
+            this.ringMat.emissive.setHex(0xaa1100);
         }
         if (this.tetraMat) {
-            this.tetraMat.color.setHex(0x88ffbb);
-            this.tetraMat.emissive.setHex(0x005522);
+            this.tetraMat.color.setHex(0xffaa00);
+            this.tetraMat.emissive.setHex(0x882200);
         }
         if (this.mountainMat) {
-            this.mountainMat.uniforms.baseColor.value.setHex(0x0a2a15);
-            this.mountainMat.uniforms.peakColor.value.setHex(0x00ffaa);
+            this.mountainMat.uniforms.baseColor.value.setHex(0x2a0500);
+            this.mountainMat.uniforms.peakColor.value.setHex(0xff3300);
+        }
+    } else if (theme === 'TOXIC') {
+        const bg = new THREE.Color(0x051a02);
+        this.scene.background = bg;
+        this.scene.fog = new THREE.FogExp2(bg, 0.003);
+        this.dirLight.color.setHex(0x55ff00);
+        this.ambLight.color.setHex(0x00ffaa);
+        this.sunMat.color.setHex(0x55ff00);
+        this.starsMat.color.setHex(0x00ff55); // spores
+        this.starsMat.opacity = 0.5; 
+        this.pillarMat.color.setHex(0x0a2a05);
+        this.crysMat.color.setHex(0x00ffaa);
+        this.crysMat.emissive.setHex(0x00aa55);
+        this.wireMat.color.setHex(0x55ff00);
+        if (this.monolithMat) this.monolithMat.color.setHex(0x05200a);
+        if (this.ringMat) {
+            this.ringMat.color.setHex(0x00ff55);
+            this.ringMat.emissive.setHex(0x00aa22);
+        }
+        if (this.tetraMat) {
+            this.tetraMat.color.setHex(0x55ff00);
+            this.tetraMat.emissive.setHex(0x228800);
+        }
+        if (this.mountainMat) {
+            this.mountainMat.uniforms.baseColor.value.setHex(0x0a2a05);
+            this.mountainMat.uniforms.peakColor.value.setHex(0x55ff00);
         }
     }
 
     // Refresh train materials colors based on theme too
     this.trainMaterials.forEach(mat => {
-        if (theme === 'DESERT') {
-            mat.uniforms.color1.value.setHex(0x1a0f0a); // Dark metallic
-            mat.uniforms.color2.value.setHex(0xff8800); // Orange/Lava glow
-            mat.uniforms.gridColor.value.setHex(0x2a1f1a); 
-        } else if (theme === 'SNOW') {
-            mat.uniforms.color1.value.setHex(0x0f172a); // Slate metallic
-            mat.uniforms.color2.value.setHex(0x38bdf8); // Ice blue glow
-            mat.uniforms.gridColor.value.setHex(0x1e293b);
-        } else if (theme === 'SPRING') {
-            mat.uniforms.color1.value.setHex(0x0a1a0f); // Dark green metallic
-            mat.uniforms.color2.value.setHex(0x22c55e); // Toxic/Neon green glow
-            mat.uniforms.gridColor.value.setHex(0x1a2a1f);
+        if (theme === 'CYBER') {
+            mat.uniforms.color1.value.setHex(0x0a0520); // Dark metallic magenta
+            mat.uniforms.color2.value.setHex(0x00f0ff); // Cyan glow
+            mat.uniforms.gridColor.value.setHex(0x2a0f3a); 
+        } else if (theme === 'INFERNO') {
+            mat.uniforms.color1.value.setHex(0x1a0500); // Slate metallic
+            mat.uniforms.color2.value.setHex(0xff3300); // Lava glow
+            mat.uniforms.gridColor.value.setHex(0x2a0a00);
+        } else if (theme === 'TOXIC') {
+            mat.uniforms.color1.value.setHex(0x051a0a); // Dark green metallic
+            mat.uniforms.color2.value.setHex(0x55ff00); // Toxic/Neon green glow
+            mat.uniforms.gridColor.value.setHex(0x0a2a1f);
         }
     });
 
     if (this.skyMat) {
-        if (theme === 'DESERT') {
-            this.skyMat.uniforms.topColor.value.setHex(0x0f172a); // Dark space
-            this.skyMat.uniforms.middleColor.value.setHex(0x7c2d12); // Deep orange nebula
-            this.skyMat.uniforms.bottomColor.value.setHex(0x000000); // Black horizon
-        } else if (theme === 'SNOW') {
+        if (theme === 'CYBER') {
+            this.skyMat.uniforms.topColor.value.setHex(0x050110); 
+            this.skyMat.uniforms.middleColor.value.setHex(0x3a0055); 
+            this.skyMat.uniforms.bottomColor.value.setHex(0x000000); 
+        } else if (theme === 'INFERNO') {
             this.skyMat.uniforms.topColor.value.setHex(0x000000);
-            this.skyMat.uniforms.middleColor.value.setHex(0x0c4a6e); // Deep blue nebula
-            this.skyMat.uniforms.bottomColor.value.setHex(0x0f172a);
-        } else if (theme === 'SPRING') {
+            this.skyMat.uniforms.middleColor.value.setHex(0x5a1000); 
+            this.skyMat.uniforms.bottomColor.value.setHex(0x1a0200);
+        } else if (theme === 'TOXIC') {
             this.skyMat.uniforms.topColor.value.setHex(0x000000);
-            this.skyMat.uniforms.middleColor.value.setHex(0x064e3b); // Deep green nebula
-            this.skyMat.uniforms.bottomColor.value.setHex(0x052e16);
+            this.skyMat.uniforms.middleColor.value.setHex(0x0a3a05); 
+            this.skyMat.uniforms.bottomColor.value.setHex(0x021a00);
         }
     }
   }
@@ -918,7 +919,7 @@ export class GameEngine {
     this.timeScale = 1.0;
     this.runTime = 0;
     this.shootTimer = 0;
-    this.lastBossScore = 0;
+    this.nextBossScore = 1500;
     
     // Clear old objects
     this.trains.forEach(t => this.scene.remove(t));
@@ -1453,7 +1454,7 @@ export class GameEngine {
     const newHp = Math.max(0, store.hp - amount);
     audioManager.playHit();
     this.addScreenShake(0.5);
-    store.setGameplayState({ hp: newHp, combo: 1 }); // reset combo
+    store.setGameplayState({ hp: newHp, combo: 1, lastHitTime: Date.now() }); // reset combo
     
     if (newHp <= 0) {
       this.die();
@@ -1585,11 +1586,11 @@ export class GameEngine {
     }
     
     // Boss trigger
-    if (store.score > this.lastBossScore + 1500) {
-        this.lastBossScore = store.score;
+    if (store.score >= this.nextBossScore) {
         const hasBoss = this.enemies.some(e => e.type === 'boss');
         if (!hasBoss) {
             this.spawnBoss();
+            this.nextBossScore = Infinity; // Will be reset when boss dies
         }
     }
     
@@ -1836,6 +1837,7 @@ export class GameEngine {
               const eBox = new THREE.Box3().setFromObject(e.mesh);
               if (pBox.intersectsBox(eBox)) {
                   e.hp -= p.mesh.userData.damage || 10;
+                  e.hitScale = Math.max(0.2, (e.hitScale || 1.0) - 0.4); // Cumulative squish
                   hit = true;
                   this.triggerExplosion(p.mesh.position, COLORS.projectile);
                   if (e.hp <= 0) {
@@ -1846,7 +1848,9 @@ export class GameEngine {
                       if (e.type === 'boss') {
                           this.triggerExplosion(e.mesh.getWorldPosition(new THREE.Vector3()), 0xffffff); // Extra big explosion effect natively handled by having more particles in the future, for now double explosion
                           this.triggerExplosion(e.mesh.getWorldPosition(new THREE.Vector3()), 0xff0000);
-                          store.setGameplayState({ combo: store.combo + 5, score: store.score + 5000 });
+                          const newScore = store.score + 5000;
+                          store.setGameplayState({ combo: store.combo + 5, score: newScore });
+                          this.nextBossScore = newScore + 1500;
                       } else {
                           store.setGameplayState({ combo: store.combo + 1, score: store.score + 100 * store.combo });
                       }
@@ -2049,6 +2053,12 @@ export class GameEngine {
             
             // Torso bounce
             if (e.modelParts.torso) e.modelParts.torso.position.y = 0.8 + Math.abs(Math.sin(t * 2)) * 0.1;
+        }
+        
+        // Hit Scale Lerp
+        if (e.hitScale !== undefined) {
+            e.hitScale = THREE.MathUtils.lerp(e.hitScale, 1.0, 15 * dt);
+            e.mesh.scale.setScalar(e.hitScale);
         }
         
         // Player body collision

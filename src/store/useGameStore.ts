@@ -19,7 +19,7 @@ interface PersistentData {
     musicVolume: number;
     sfxVolume: number;
     postProcessing: boolean;
-    theme: 'DESERT' | 'SNOW' | 'SPRING';
+    theme: 'CYBER' | 'INFERNO' | 'TOXIC';
   };
 }
 
@@ -48,11 +48,12 @@ interface StoreState {
   isBulletTime: boolean;
   distance: number;
   difficultyLevel: number;
+  lastHitTime: number;
   activePowerup: { type: 'SHIELD' | 'DOUBLE_COIN' | 'RAPID_FIRE' | 'DOUBLE_WEAPONS' | null, timeLeft: number };
   setGameplayState: (state: Partial<{ 
     hp: number, maxHp: number, score: number, combo: number, 
     bulletTimeMeter: number, isBulletTime: boolean, distance: number,
-    difficultyLevel: number, activePowerup: { type: 'SHIELD' | 'DOUBLE_COIN' | 'RAPID_FIRE' | 'DOUBLE_WEAPONS' | null, timeLeft: number }
+    difficultyLevel: number, lastHitTime: number, activePowerup: { type: 'SHIELD' | 'DOUBLE_COIN' | 'RAPID_FIRE' | 'DOUBLE_WEAPONS' | null, timeLeft: number }
   }>) => void;
 }
 
@@ -73,7 +74,7 @@ const loadPersistentData = (): PersistentData => {
       musicVolume: 50,
       sfxVolume: 50,
       postProcessing: true,
-      theme: 'DESERT',
+      theme: 'CYBER',
     }
   };
   if (saved) {
@@ -170,6 +171,7 @@ export const useGameStore = create<StoreState>((set, get) => ({
   isBulletTime: false,
   distance: 0,
   difficultyLevel: 1,
+  lastHitTime: 0,
   activePowerup: { type: null, timeLeft: 0 },
   
   setGameplayState: (newState) => set((state) => ({ ...state, ...newState })),
