@@ -15,44 +15,62 @@ const HUD = () => {
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between z-20" style={{ fontFamily: 'Orbitron, sans-serif' }}>
       {/* Top HUD Bar */}
-      <nav className="h-24 flex items-center justify-between px-8 bg-gradient-to-b from-black/80 to-transparent">
-        <div className="flex items-center gap-6">
-          <div className="group">
+      <nav className="relative h-auto md:h-24 py-3 md:py-0 flex items-start md:items-center justify-between px-3 md:px-8 bg-gradient-to-b from-black/80 to-transparent">
+        
+        {/* Left Side: VITALITY and FOCUS */}
+        <div className="flex flex-col sm:flex-row items-start md:items-center gap-3 md:gap-8 w-auto md:w-1/3 z-10">
+          <div className="group w-[120px] md:w-auto">
             <div className="flex justify-between items-end mb-1">
-              <span className="text-[10px] font-bold tracking-[0.2em] text-[#ff4e00] uppercase">Vitality State {activePowerup.type === 'SHIELD' && <span className="text-cyan-400 ml-2">(SHIELDED)</span>}</span>
-              <span className="text-xs font-mono">{Math.ceil((hp / maxHp) * 100)}/100</span>
+              <span className="text-[10px] md:text-[12px] font-bold tracking-[0.1em] md:tracking-[0.2em] text-[#ff8800] uppercase">Vitality</span>
+              <span className="text-[10px] md:text-sm font-bold text-white/80">{Math.ceil((hp / maxHp) * 100)}/100</span>
             </div>
-            <div className="w-48 h-3 bg-gray-900 border border-gray-700 p-[2px]">
-              <div className="h-full bg-gradient-to-r from-orange-600 to-orange-400 shadow-[0_0_10px_rgba(255,78,0,0.5)] transition-all duration-300" style={{ width: `${(hp / maxHp) * 100}%` }}></div>
-            </div>
-          </div>
-          <div className="group ml-4">
-            <div className="flex justify-between items-end mb-1">
-              <span className="text-[10px] font-bold tracking-[0.2em] text-[#00f0ff] uppercase">Focus Charge</span>
-              <span className="text-xs font-mono">{bulletTimeMeter >= 100 ? 'READY' : `${Math.floor(bulletTimeMeter)}%`}</span>
-            </div>
-            <div className="w-32 h-3 bg-gray-900 border border-gray-700 p-[2px]">
-              <div className="h-full bg-cyan-400 transition-all duration-100" style={{ width: `${bulletTimeMeter}%` }}></div>
+            <div className="w-full md:w-56 h-2 md:h-3 bg-white/10 border border-white/20 relative">
+              {/* Segmented health bar effect */}
+              <div 
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-600 to-orange-400 shadow-[0_0_15px_rgba(255,136,0,0.6)] transition-all duration-300" 
+                  style={{ width: `${(hp / maxHp) * 100}%` }}
+              >
+                  <div className="w-full h-full" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(0,0,0,0.5) 4px, rgba(0,0,0,0.5) 5px)' }}></div>
+              </div>
             </div>
           </div>
           
-          {/* Active Powerup / Difficulty */}
-          <div className="flex flex-col items-start ml-8">
-             <div className="text-[10px] font-bold tracking-[0.3em] text-red-500 uppercase">Threat Level {difficultyLevel.toFixed(1)}x</div>
+          <div className="group w-[120px] md:w-auto hidden sm:block">
+            <div className="flex justify-between items-end mb-1">
+              <span className="text-[10px] md:text-[12px] font-bold tracking-[0.1em] md:tracking-[0.2em] text-[#00f0ff] uppercase">Focus (Shift)</span>
+              <span className="text-[10px] md:text-sm font-bold text-white/80">{bulletTimeMeter >= 100 ? 'READY' : `${Math.floor(bulletTimeMeter)}%`}</span>
+            </div>
+            <div className="w-full md:w-48 h-2 md:h-3 bg-white/10 border border-white/20 relative">
+              <div 
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-600 to-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.6)] transition-all duration-100" 
+                  style={{ width: `${bulletTimeMeter}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Center: THREAT LEVEL */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-2 md:top-auto flex flex-col items-center z-0">
+             <div className="text-[12px] md:text-[16px] font-black tracking-[0.1em] md:tracking-[0.3em] text-[#ff4e00] uppercase pt-2 drop-shadow-[0_0_8px_rgba(255,78,0,0.8)] whitespace-nowrap">
+                 Threat <span className="hidden sm:inline">Level</span> {difficultyLevel.toFixed(1)}x
+             </div>
              {activePowerup.type && (
-               <div className="text-xs font-bold text-yellow-400 animate-pulse mt-1">
+               <div className="text-[9px] md:text-xs font-bold text-yellow-400 animate-pulse mt-1 bg-black/50 px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-yellow-500/30 whitespace-nowrap">
                  {activePowerup.type} - {Math.ceil(activePowerup.timeLeft)}s
                </div>
              )}
-          </div>
         </div>
 
-        <div className="flex flex-col items-end">
-          <div className="text-[10px] font-bold tracking-[0.3em] text-gray-500 uppercase">Distance Travelled</div>
-          <div className="text-4xl font-black italic tracking-tighter text-white font-mono">
-            {Math.floor(score).toLocaleString()}<span className="text-orange-500">M</span>
+        {/* Right Side: DISTANCE */}
+        <div className="flex flex-col items-end w-auto md:w-1/3 z-10">
+          <div className="text-[10px] md:text-[12px] font-bold tracking-[0.1em] md:tracking-[0.3em] text-white/70 uppercase">Distance</div>
+          <div className="flex items-baseline gap-1 drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+            <span className="text-xl md:text-4xl font-black italic tracking-tighter text-white font-mono leading-none">
+              {Math.floor(score).toLocaleString()}
+            </span>
+            <span className="text-lg md:text-2xl font-black italic text-[#ff4e00] leading-none">M</span>
           </div>
-          {combo > 1 && <div className="text-xs font-bold tracking-[0.2em] text-cyan-400 uppercase mt-1">x{combo} Combo</div>}
+          {combo > 1 && <div className="text-[9px] md:text-xs font-bold tracking-[0.1em] md:tracking-[0.2em] text-[#00f0ff] uppercase mt-1 animate-pulse border border-cyan-500/50 bg-cyan-900/40 px-1 md:px-2 py-0.5 whitespace-nowrap">x{combo} Combo</div>}
         </div>
       </nav>
 
@@ -73,8 +91,8 @@ const HUD = () => {
       <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-orange-900/20 to-transparent pointer-events-none border-r-2 border-orange-500/30"></div>
 
       {/* Mobile Controls Hint */}
-      <div className="text-center text-white/50 text-sm mb-4">
-        SWIPE: Move • TAP: Jump • HOLD SPACE: Auto Fire
+      <div className="text-center text-white/50 text-sm mb-4 hidden sm:block">
+        ARROWS: Move • SPACE: Fire • SHIFT: Focus (Slow-Mo)
       </div>
     </div>
   );
@@ -95,7 +113,7 @@ const MainMenu = () => {
         {/* Title Design */}
         <div className="relative mb-12 text-center flex flex-col items-center">
           <div className="absolute -inset-4 bg-orange-600 blur-[80px] opacity-20"></div>
-          <h1 className="text-[80px] sm:text-[100px] md:text-[140px] font-black leading-[0.8] tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-gray-500 uppercase select-none italic text-center">
+          <h1 className="text-[60px] sm:text-[100px] md:text-[140px] font-black leading-[0.8] tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-gray-500 uppercase select-none italic text-center">
             TRAIN<br/>ASSAULT
           </h1>
           <div className="absolute -top-6 -left-6 border-l-4 border-t-4 border-orange-500 w-12 h-12"></div>
@@ -108,32 +126,32 @@ const MainMenu = () => {
         </div>
 
         {/* Menu Navigation */}
-        <div className="flex gap-4 flex-wrap justify-center">
-          <button onClick={handlePlay} className="px-12 py-5 bg-white text-black font-black text-xl hover:bg-orange-500 hover:text-white transition-colors uppercase skew-x-[-12deg] flex items-center group">
-            <span className="skew-x-[12deg] tracking-widest flex items-center gap-2"><Play fill="currentColor" /> Start Mission</span>
+        <div className="flex gap-3 md:gap-4 flex-wrap justify-center px-4">
+          <button onClick={handlePlay} className="px-8 md:px-12 py-4 md:py-5 bg-white text-black font-black text-lg md:text-xl hover:bg-orange-500 hover:text-white transition-colors uppercase skew-x-[-12deg] flex items-center group">
+            <span className="skew-x-[12deg] tracking-widest flex items-center gap-2"><Play fill="currentColor" className="w-5 h-5 md:w-6 md:h-6" /> Start Mission</span>
           </button>
-          <button onClick={() => setGameState('MISSIONS')} className="px-12 py-5 bg-transparent border-2 border-white/20 text-white font-black text-xl hover:border-cyan-400 transition-colors uppercase skew-x-[-12deg] flex items-center">
-            <span className="skew-x-[12deg] tracking-widest flex items-center gap-2"><Target /> Armory</span>
+          <button onClick={() => setGameState('MISSIONS')} className="px-8 md:px-12 py-4 md:py-5 bg-transparent border-2 border-white/20 text-white font-black text-lg md:text-xl hover:border-cyan-400 transition-colors uppercase skew-x-[-12deg] flex items-center">
+            <span className="skew-x-[12deg] tracking-widest flex items-center gap-2"><Target className="w-5 h-5 md:w-6 md:h-6" /> Armory</span>
           </button>
-          <button onClick={() => setGameState('SHOP')} className="px-8 py-5 bg-gray-900 border border-gray-800 text-white font-black text-xl hover:bg-gray-800 transition-colors uppercase skew-x-[-12deg] flex items-center">
-            <span className="skew-x-[12deg] flex items-center gap-2"><ShoppingCart /> Store</span>
+          <button onClick={() => setGameState('SHOP')} className="px-6 md:px-8 py-4 md:py-5 bg-gray-900 border border-gray-800 text-white font-black text-lg md:text-xl hover:bg-gray-800 transition-colors uppercase skew-x-[-12deg] flex items-center">
+            <span className="skew-x-[12deg] flex items-center gap-2"><ShoppingCart className="w-5 h-5 md:w-6 md:h-6" /> Store</span>
           </button>
-          <button onClick={() => setGameState('SETTINGS')} className="px-8 py-5 bg-gray-900 border border-gray-800 text-white font-black text-xl hover:bg-gray-800 transition-colors uppercase skew-x-[-12deg] flex items-center">
+          <button onClick={() => setGameState('SETTINGS')} className="px-6 md:px-8 py-4 md:py-5 bg-gray-900 border border-gray-800 text-white font-black text-lg md:text-xl hover:bg-gray-800 transition-colors uppercase skew-x-[-12deg] flex items-center">
             <span className="skew-x-[12deg] flex items-center gap-2">Settings</span>
           </button>
         </div>
       </main>
 
       {/* Bottom Interface Bar */}
-      <footer className="h-32 flex items-center justify-between px-10 border-t border-white/5 bg-black/40 backdrop-blur-md">
-        <div className="flex gap-10">
+      <footer className="h-24 sm:h-32 flex items-center justify-between px-6 sm:px-10 border-t border-white/5 bg-black/40 backdrop-blur-md">
+        <div className="flex gap-6 sm:gap-10">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase">Credits</span>
-            <span className="text-2xl font-mono font-bold text-white tracking-tight">{persistent.coins.toLocaleString()} <span className="text-xs text-orange-500">$</span></span>
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-widest text-gray-500 uppercase">Credits</span>
+            <span className="text-xl sm:text-2xl font-mono font-bold text-white tracking-tight">{persistent.coins.toLocaleString()} <span className="text-[10px] sm:text-xs text-orange-500">$</span></span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase">High Score</span>
-            <span className="text-2xl font-mono font-bold text-white tracking-tight">{persistent.highScore.toLocaleString()} <span className="text-xs text-cyan-400">M</span></span>
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-widest text-gray-500 uppercase">High Score</span>
+            <span className="text-xl sm:text-2xl font-mono font-bold text-white tracking-tight">{persistent.highScore.toLocaleString()} <span className="text-[10px] sm:text-xs text-cyan-400">M</span></span>
           </div>
         </div>
 
@@ -438,7 +456,7 @@ const MobileControls = () => {
   };
 
   return (
-    <div className="absolute inset-x-0 bottom-4 px-2 flex justify-between pointer-events-none z-30 sm:hidden select-none touch-none">
+    <div className="absolute inset-x-0 bottom-8 md:bottom-12 px-4 flex justify-between pointer-events-none z-30 sm:hidden select-none touch-none">
       {/* Left Controls - Movement */}
       <div className="flex gap-1 pointer-events-auto items-end">
         <button 

@@ -23,6 +23,8 @@ interface Enemy {
   zBase: number; // Base position on the train
   state: string;
   timer: number;
+  shotsFired?: number;
+  shotDelayTimer?: number;
   modelParts?: {
     leftLeg: THREE.Group;
     rightLeg: THREE.Group;
@@ -44,6 +46,7 @@ interface Projectile {
   velocity: THREE.Vector3;
   isPlayer: boolean;
   life: number;
+  damage?: number;
 }
 
 interface Pickup {
@@ -112,14 +115,22 @@ export class GameEngine {
   crysInstanced!: THREE.InstancedMesh;
   frameInstanced!: THREE.InstancedMesh;
   innerFrameInstanced!: THREE.InstancedMesh;
+  monolithInstanced!: THREE.InstancedMesh;
+  ringInstanced!: THREE.InstancedMesh;
+  tetraInstanced!: THREE.InstancedMesh;
 
   // Materials for theme switching
   sunMat!: THREE.MeshBasicMaterial;
   starsMat!: THREE.PointsMaterial;
   pillarMat!: THREE.MeshStandardMaterial;
   mountainMat!: THREE.ShaderMaterial;
+  skyMat!: THREE.ShaderMaterial;
+  skyDome!: THREE.Mesh;
   wireMat!: THREE.MeshBasicMaterial;
   crysMat!: THREE.MeshStandardMaterial;
+  monolithMat!: THREE.MeshStandardMaterial;
+  ringMat!: THREE.MeshStandardMaterial;
+  tetraMat!: THREE.MeshStandardMaterial;
   dirLight!: THREE.DirectionalLight;
   ambLight!: THREE.AmbientLight;
 
@@ -141,74 +152,117 @@ export class GameEngine {
     this.rgbShiftPass.enabled = postProcessing;
 
     if (theme === 'DESERT') {
-        const bg = new THREE.Color(0xeab308);
+        const bg = new THREE.Color(0x0a0502);
         this.scene.background = bg;
-        this.scene.fog = new THREE.FogExp2(bg, 0.005);
-        this.dirLight.color.setHex(0xffeedd);
-        this.ambLight.color.setHex(0xffcc99);
+        this.scene.fog = new THREE.FogExp2(bg, 0.002);
+        this.dirLight.color.setHex(0xffddaa);
+        this.ambLight.color.setHex(0xffa555);
         this.sunMat.color.setHex(0xff5500);
         this.starsMat.color.setHex(0xffcc88);
         this.starsMat.opacity = 0.8;
-        this.pillarMat.color.setHex(0xd2691e);
-        this.crysMat.color.setHex(0xffaa00);
-        this.crysMat.emissive.setHex(0x884400);
-        this.wireMat.color.setHex(0xcc6600);
+        this.pillarMat.color.setHex(0x8a3f12);
+        this.crysMat.color.setHex(0xff8800);
+        this.crysMat.emissive.setHex(0xaa3300);
+        this.wireMat.color.setHex(0xff6600);
+        if (this.monolithMat) this.monolithMat.color.setHex(0x1a0f08);
+        if (this.ringMat) {
+            this.ringMat.color.setHex(0xffaa00);
+            this.ringMat.emissive.setHex(0xff5500);
+        }
+        if (this.tetraMat) {
+            this.tetraMat.color.setHex(0xaaaaaa);
+            this.tetraMat.emissive.setHex(0x221100);
+        }
         if (this.mountainMat) {
-            this.mountainMat.uniforms.baseColor.value.setHex(0x3a2311);
-            this.mountainMat.uniforms.peakColor.value.setHex(0xff4400); // Lava/Sun light peak
+            this.mountainMat.uniforms.baseColor.value.setHex(0x2a140a);
+            this.mountainMat.uniforms.peakColor.value.setHex(0xff5500);
         }
     } else if (theme === 'SNOW') {
-        const bg = new THREE.Color(0xddeeff);
+        const bg = new THREE.Color(0x020510);
         this.scene.background = bg;
-        this.scene.fog = new THREE.FogExp2(bg, 0.005);
-        this.dirLight.color.setHex(0xffffff);
-        this.ambLight.color.setHex(0xcceeff);
-        this.sunMat.color.setHex(0xffffff);
+        this.scene.fog = new THREE.FogExp2(bg, 0.002);
+        this.dirLight.color.setHex(0xaaccff);
+        this.ambLight.color.setHex(0x4466aa);
+        this.sunMat.color.setHex(0x88ccff);
         this.starsMat.color.setHex(0xffffff); // snowflakes
         this.starsMat.opacity = 0.9;
-        this.pillarMat.color.setHex(0x94a3b8);
-        this.crysMat.color.setHex(0xbae6fd);
-        this.crysMat.emissive.setHex(0x38bdf8);
-        this.wireMat.color.setHex(0x60a5fa);
+        this.pillarMat.color.setHex(0x1a2b4c);
+        this.crysMat.color.setHex(0x44aaff);
+        this.crysMat.emissive.setHex(0x0055aa);
+        this.wireMat.color.setHex(0x0088ff);
+        if (this.monolithMat) this.monolithMat.color.setHex(0x0a1020);
+        if (this.ringMat) {
+            this.ringMat.color.setHex(0x00f0ff);
+            this.ringMat.emissive.setHex(0x0088ff);
+        }
+        if (this.tetraMat) {
+            this.tetraMat.color.setHex(0x88bbff);
+            this.tetraMat.emissive.setHex(0x002255);
+        }
         if (this.mountainMat) {
-            this.mountainMat.uniforms.baseColor.value.setHex(0x1e293b);
-            this.mountainMat.uniforms.peakColor.value.setHex(0x0ea5e9); // Ice glow peak
+            this.mountainMat.uniforms.baseColor.value.setHex(0x0a152a);
+            this.mountainMat.uniforms.peakColor.value.setHex(0x00aaff);
         }
     } else if (theme === 'SPRING') {
-        const bg = new THREE.Color(0x7dd3fc); // Light blue sky
+        const bg = new THREE.Color(0x021005);
         this.scene.background = bg;
-        this.scene.fog = new THREE.FogExp2(bg, 0.005);
-        this.dirLight.color.setHex(0xfff8e7);
-        this.ambLight.color.setHex(0xccffcc);
-        this.sunMat.color.setHex(0xfde047);
-        this.starsMat.color.setHex(0xffffff);
-        this.starsMat.opacity = 0.0; // Hide stars/dust in spring
-        this.pillarMat.color.setHex(0x4ade80);
-        this.crysMat.color.setHex(0xf472b6);
-        this.crysMat.emissive.setHex(0xbe185d);
-        this.wireMat.color.setHex(0x22c55e);
+        this.scene.fog = new THREE.FogExp2(bg, 0.002);
+        this.dirLight.color.setHex(0xaaffaa);
+        this.ambLight.color.setHex(0x44aa44);
+        this.sunMat.color.setHex(0x55ff55);
+        this.starsMat.color.setHex(0xccffcc);
+        this.starsMat.opacity = 0.3; // Hide stars/dust in spring
+        this.pillarMat.color.setHex(0x1a4c2b);
+        this.crysMat.color.setHex(0x44ffaa);
+        this.crysMat.emissive.setHex(0x00aa55);
+        this.wireMat.color.setHex(0x00ff88);
+        if (this.monolithMat) this.monolithMat.color.setHex(0x0a2010);
+        if (this.ringMat) {
+            this.ringMat.color.setHex(0x00ffaa);
+            this.ringMat.emissive.setHex(0x00aa55);
+        }
+        if (this.tetraMat) {
+            this.tetraMat.color.setHex(0x88ffbb);
+            this.tetraMat.emissive.setHex(0x005522);
+        }
         if (this.mountainMat) {
-            this.mountainMat.uniforms.baseColor.value.setHex(0x064e3b); // Dark green
-            this.mountainMat.uniforms.peakColor.value.setHex(0xa7f3d0); // Light green peak
+            this.mountainMat.uniforms.baseColor.value.setHex(0x0a2a15);
+            this.mountainMat.uniforms.peakColor.value.setHex(0x00ffaa);
         }
     }
 
     // Refresh train materials colors based on theme too
     this.trainMaterials.forEach(mat => {
         if (theme === 'DESERT') {
-            mat.uniforms.color1.value.setHex(0xd2b48c);
-            mat.uniforms.color2.value.setHex(0xc2a47c);
-            mat.uniforms.gridColor.value.setHex(0x8b5a2b);
+            mat.uniforms.color1.value.setHex(0x1a0f0a); // Dark metallic
+            mat.uniforms.color2.value.setHex(0xff8800); // Orange/Lava glow
+            mat.uniforms.gridColor.value.setHex(0x2a1f1a); 
         } else if (theme === 'SNOW') {
-            mat.uniforms.color1.value.setHex(0xffffff);
-            mat.uniforms.color2.value.setHex(0xe2e8f0);
-            mat.uniforms.gridColor.value.setHex(0xcbd5e1);
+            mat.uniforms.color1.value.setHex(0x0f172a); // Slate metallic
+            mat.uniforms.color2.value.setHex(0x38bdf8); // Ice blue glow
+            mat.uniforms.gridColor.value.setHex(0x1e293b);
         } else if (theme === 'SPRING') {
-            mat.uniforms.color1.value.setHex(0x86efac);
-            mat.uniforms.color2.value.setHex(0x4ade80);
-            mat.uniforms.gridColor.value.setHex(0x166534);
+            mat.uniforms.color1.value.setHex(0x0a1a0f); // Dark green metallic
+            mat.uniforms.color2.value.setHex(0x22c55e); // Toxic/Neon green glow
+            mat.uniforms.gridColor.value.setHex(0x1a2a1f);
         }
     });
+
+    if (this.skyMat) {
+        if (theme === 'DESERT') {
+            this.skyMat.uniforms.topColor.value.setHex(0x0f172a); // Dark space
+            this.skyMat.uniforms.middleColor.value.setHex(0x7c2d12); // Deep orange nebula
+            this.skyMat.uniforms.bottomColor.value.setHex(0x000000); // Black horizon
+        } else if (theme === 'SNOW') {
+            this.skyMat.uniforms.topColor.value.setHex(0x000000);
+            this.skyMat.uniforms.middleColor.value.setHex(0x0c4a6e); // Deep blue nebula
+            this.skyMat.uniforms.bottomColor.value.setHex(0x0f172a);
+        } else if (theme === 'SPRING') {
+            this.skyMat.uniforms.topColor.value.setHex(0x000000);
+            this.skyMat.uniforms.middleColor.value.setHex(0x064e3b); // Deep green nebula
+            this.skyMat.uniforms.bottomColor.value.setHex(0x052e16);
+        }
+    }
   }
 
   constructor(container: HTMLElement) {
@@ -216,8 +270,8 @@ export class GameEngine {
     
     // Setup Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xeab308); // Desert sky
-    this.scene.fog = new THREE.Fog(0xeab308, 50, 300);
+    this.scene.background = new THREE.Color(0x000000); // Handled by applyTheme
+    this.scene.fog = new THREE.FogExp2(0x000000, 0.002);
     
     // Setup Camera
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -251,7 +305,7 @@ export class GameEngine {
     this.composer.addPass(this.vignettePass);
     
     // SMAA
-    this.smaaPass = new SMAAPass(window.innerWidth * this.renderer.getPixelRatio(), window.innerHeight * this.renderer.getPixelRatio());
+    this.smaaPass = new SMAAPass();
     this.composer.addPass(this.smaaPass);
     
     // Output pass
@@ -434,7 +488,7 @@ export class GameEngine {
       (gltf) => {
         console.log('Player model loaded successfully');
         // Remove placeholder and add the loaded model
-        this.player.remove(placeholder);
+        this.player.remove(this.playerModelGroup);
         
         const model = gltf.scene;
         
@@ -478,7 +532,7 @@ export class GameEngine {
         });
         
         // Let's keep the gun on the real model too
-        model.add(gun); 
+        model.add(gunGroup); 
         
         this.player.add(model);
       },
@@ -486,9 +540,9 @@ export class GameEngine {
          console.log(`Loading model: ${Math.round((progress.loaded / progress.total) * 100)}%`);
       },
       (err) => {
-        console.error('Could not load maincaracter.glb, using placeholder.', err);
+        console.error('Could not load illiakan_v1.glb, using placeholder.', err);
         // Put placeholder back if it fails
-        this.player.add(placeholder);
+        this.player.add(this.playerModelGroup);
       }
     );
     
@@ -511,6 +565,52 @@ export class GameEngine {
     sun.position.set(0, 10, -400); // Low on the horizon
     sun.lookAt(this.camera.position);
     this.scene.add(sun);
+    
+    // Sky Dome (Three-color Gradient Background)
+    const skyGeo = new THREE.SphereGeometry(600, 32, 15);
+    this.skyMat = new THREE.ShaderMaterial({
+        uniforms: {
+            topColor: { value: new THREE.Color(0x0f172a) },
+            middleColor: { value: new THREE.Color(0x312e81) },
+            bottomColor: { value: new THREE.Color(0x020617) },
+            offset: { value: 33 },
+            exponent: { value: 0.6 }
+        },
+        vertexShader: `
+            varying vec3 vWorldPosition;
+            void main() {
+                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                vWorldPosition = worldPosition.xyz;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform vec3 topColor;
+            uniform vec3 middleColor;
+            uniform vec3 bottomColor;
+            uniform float offset;
+            uniform float exponent;
+            varying vec3 vWorldPosition;
+            void main() {
+                // Normalize Y
+                float h = normalize(vWorldPosition + vec3(0.0, offset, 0.0)).y;
+                
+                vec3 finalColor;
+                if (h > 0.0) {
+                    float factor = max(pow(clamp(h, 0.0, 1.0), exponent), 0.0);
+                    finalColor = mix(middleColor, topColor, factor);
+                } else {
+                    float factor = max(pow(clamp(-h, 0.0, 1.0), exponent), 0.0);
+                    finalColor = mix(middleColor, bottomColor, factor);
+                }
+                gl_FragColor = vec4(finalColor, 1.0);
+            }
+        `,
+        side: THREE.BackSide,
+        depthWrite: false
+    });
+    this.skyDome = new THREE.Mesh(skyGeo, this.skyMat);
+    this.scene.add(this.skyDome);
 
     // Setup Desert Scenery
     this.scenery = new THREE.Group();
@@ -571,6 +671,23 @@ export class GameEngine {
     const frameInstanced = new THREE.InstancedMesh(frameGeo, this.wireMat, numWireframes);
     const innerFrameInstanced = new THREE.InstancedMesh(innerFrameGeo, this.wireMat, numWireframes);
     
+    // Monoliths & Rings
+    const numMonoliths = 15;
+    const monolithGeo = new THREE.BoxGeometry(10, 40, 10);
+    this.monolithMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.8 });
+    const monolithInstanced = new THREE.InstancedMesh(monolithGeo, this.monolithMat, numMonoliths);
+    
+    const numRings = 10;
+    const ringGeo = new THREE.TorusGeometry(30, 2, 16, 100);
+    this.ringMat = new THREE.MeshStandardMaterial({ color: 0x00f0ff, emissive: 0x0088ff, emissiveIntensity: 0.5, wireframe: true, transparent: true, opacity: 0.6 });
+    const ringInstanced = new THREE.InstancedMesh(ringGeo, this.ringMat, numRings);
+    
+    // Tetrahedrons (floating abstract shapes)
+    const numTetras = 20;
+    const tetraGeo = new THREE.TetrahedronGeometry(12, 0);
+    this.tetraMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, emissive: 0x221100, emissiveIntensity: 0.6, metalness: 0.8, roughness: 0.2 });
+    const tetraInstanced = new THREE.InstancedMesh(tetraGeo, this.tetraMat, numTetras);
+    
     // Store data for moving instances
     this.sceneryInstances = [];
     
@@ -611,12 +728,56 @@ export class GameEngine {
             type: 'wireframe', index: i, pos: new THREE.Vector3(x, y, z), rot, rotSpeed
         });
     }
+
+    for (let i = 0; i < numMonoliths; i++) {
+        const sign = Math.random() > 0.5 ? 1 : -1;
+        const z = -Math.random() * 800 - 100;
+        const x = sign * (60 + Math.random() * 60);
+        const y = (Math.random() - 0.5) * 60;
+        
+        const rot = new THREE.Euler(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2);
+        const rotSpeed = new THREE.Euler((Math.random() - 0.5) * 0.05, Math.random() * 0.1, (Math.random() - 0.5) * 0.05);
+        
+        this.sceneryInstances.push({
+            type: 'monolith', index: i, pos: new THREE.Vector3(x, y, z), rot, rotSpeed
+        });
+    }
+
+    for (let i = 0; i < numRings; i++) {
+        const z = -Math.random() * 1000 - 200;
+        const x = (Math.random() - 0.5) * 40;
+        const y = (Math.random() - 0.5) * 40 + 20;
+        
+        const rot = new THREE.Euler(0, 0, Math.random() * Math.PI);
+        const rotSpeed = new THREE.Euler(0, 0, (Math.random() - 0.5) * 0.5);
+        
+        this.sceneryInstances.push({
+            type: 'ring', index: i, pos: new THREE.Vector3(x, y, z), rot, rotSpeed
+        });
+    }
+
+    for (let i = 0; i < numTetras; i++) {
+        const sign = Math.random() > 0.5 ? 1 : -1;
+        const z = -Math.random() * 800;
+        const x = sign * (30 + Math.random() * 50);
+        const y = (Math.random() - 0.5) * 80 + 20;
+        
+        const rot = new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        const rotSpeed = new THREE.Euler((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4);
+        
+        this.sceneryInstances.push({
+            type: 'tetra', index: i, pos: new THREE.Vector3(x, y, z), rot, rotSpeed
+        });
+    }
     
     this.pillarInstanced = pillarInstanced;
     this.mountainInstanced = mountainInstanced;
     this.crysInstanced = crysInstanced;
     this.frameInstanced = frameInstanced;
     this.innerFrameInstanced = innerFrameInstanced;
+    this.monolithInstanced = monolithInstanced;
+    this.ringInstanced = ringInstanced;
+    this.tetraInstanced = tetraInstanced;
     
     // Set initial matrices
     const dummy = new THREE.Object3D();
@@ -638,6 +799,18 @@ export class GameEngine {
             dummy.rotation.set(inst.rot.x + Math.PI/4, inst.rot.y + Math.PI/4, inst.rot.z);
             dummy.updateMatrix();
             this.innerFrameInstanced.setMatrixAt(inst.index, dummy.matrix);
+        } else if (inst.type === 'monolith') {
+            dummy.rotation.copy(inst.rot);
+            dummy.updateMatrix();
+            this.monolithInstanced.setMatrixAt(inst.index, dummy.matrix);
+        } else if (inst.type === 'ring') {
+            dummy.rotation.copy(inst.rot);
+            dummy.updateMatrix();
+            this.ringInstanced.setMatrixAt(inst.index, dummy.matrix);
+        } else if (inst.type === 'tetra') {
+            dummy.rotation.copy(inst.rot);
+            dummy.updateMatrix();
+            this.tetraInstanced.setMatrixAt(inst.index, dummy.matrix);
         }
     }
     
@@ -646,6 +819,9 @@ export class GameEngine {
     this.scenery.add(crysInstanced);
     this.scenery.add(frameInstanced);
     this.scenery.add(innerFrameInstanced);
+    this.scenery.add(monolithInstanced);
+    this.scenery.add(ringInstanced);
+    this.scenery.add(this.tetraInstanced);
 
     this.clock = new THREE.Clock();
     
@@ -770,13 +946,14 @@ export class GameEngine {
     const trainWidth = LANE_WIDTH * 3 + 2;
     const trainGeo = new THREE.BoxGeometry(trainWidth, 2, TRAIN_LENGTH);
     
-    // Custom shader material for the train surface to look like desert sand
+    // High-tech paneled bridge surface shader
     const trainMat = new THREE.ShaderMaterial({
+        transparent: true,
         uniforms: {
             time: { value: 0 },
-            color1: { value: new THREE.Color(0xd2b48c) }, // Tan
-            color2: { value: new THREE.Color(0xc2a47c) }, // Darker sand
-            gridColor: { value: new THREE.Color(0x8b5a2b) } // Dark brown
+            color1: { value: new THREE.Color(0x0f172a) }, // Inner panel color
+            color2: { value: new THREE.Color(0x38bdf8) }, // Panel edge glow
+            gridColor: { value: new THREE.Color(0x1e293b) } // Metal framework
         },
         vertexShader: `
             varying vec2 vUv;
@@ -796,26 +973,32 @@ export class GameEngine {
             varying vec2 vUv;
             varying vec3 vWorldPosition;
             
-            // Noise function
-            float random(vec2 st) {
-                return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-            }
-            
             void main() {
-                // Use UV for local mapping so pattern moves with the train
-                vec2 gridUv = vUv * vec2(10.0, 40.0); // Scale grid according to train dimensions approx
+                // 3 lanes across, 10 panels deep
+                vec2 gridUv = vUv * vec2(3.0, 10.0);
+                vec2 cellUv = fract(gridUv); // 0 to 1 inside each cell
                 
-                vec2 grid = abs(fract(gridUv - 0.5) - 0.5) / fwidth(gridUv);
-                float line = min(grid.x, grid.y);
-                float gridLine = 1.0 - min(line, 1.0);
+                // Panel borders (metal frame)
+                float frameWidth = 0.05;
+                float isFrame = step(cellUv.x, frameWidth) + step(1.0 - frameWidth, cellUv.x) +
+                                step(cellUv.y, frameWidth) + step(1.0 - frameWidth, cellUv.y);
+                isFrame = min(isFrame, 1.0);
                 
-                // Checkerboard pattern for base texture variation
-                float noise = random(floor(gridUv * 4.0));
-                vec3 baseColor = mix(color1, color2, noise);
+                // Inner bright neon rim
+                float isRim = step(cellUv.x, frameWidth + 0.05) + step(1.0 - frameWidth - 0.05, cellUv.x) +
+                              step(cellUv.y, frameWidth + 0.05) + step(1.0 - frameWidth - 0.05, cellUv.y);
+                isRim = min(isRim, 1.0) - isFrame;
+                isRim = max(isRim, 0.0);
+
+                // Scrolling digital energy beneath the glass
+                float scanline = sin((vWorldPosition.z * 2.0) - time * 10.0) * 0.5 + 0.5;
+                vec3 glassColor = mix(color1, color2, scanline * 0.3 * (1.0 - cellUv.y));
+
+                vec3 finalColor = mix(glassColor, color2, isRim); // Add glowing rim
+                finalColor = mix(finalColor, gridColor, isFrame); // Add metal framework
                 
-                vec3 finalColor = mix(baseColor, gridColor, gridLine * 0.3);
-                
-                gl_FragColor = vec4(finalColor, 1.0);
+                float alpha = mix(0.9, 1.0, isFrame);
+                gl_FragColor = vec4(finalColor, alpha);
             }
         `
     });
@@ -886,67 +1069,104 @@ export class GameEngine {
     torso.position.y = 0.8;
     mesh.add(torso);
     
-    // Chest depending on type
-    let chestGeo: THREE.BufferGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.6, 8);
-    if (type === 'shielder') chestGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.8, 8);
-    if (type === 'dodger') chestGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.5, 8);
-    const chest = new THREE.Mesh(chestGeo, matArmor);
-    torso.add(chest);
-    
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), matDark);
-    head.position.y = (type === 'shielder' ? 0.7 : 0.5);
-    torso.add(head);
-    
-    const eye = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.1, 8, 1, false, 0, Math.PI), matGlow);
-    eye.position.y = (type === 'shielder' ? 0.7 : 0.5);
-    eye.rotation.y = -Math.PI / 2;
-    torso.add(eye);
-    
-    const leftArm = new THREE.Group();
-    leftArm.position.set(-0.6, 0.2, 0);
-    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.7, 8), matArmor);
-    armL.position.y = -0.35;
-    leftArm.add(armL);
-    torso.add(leftArm);
-    
-    const rightArm = new THREE.Group();
-    rightArm.position.set(0.6, 0.2, 0);
-    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.7, 8), matArmor);
-    armR.position.y = -0.35;
-    rightArm.add(armR);
-    torso.add(rightArm);
-    
-    if (type === 'gunner' || type === 'bomber') {
-        const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9, 8), matDark);
-        gun.rotation.x = Math.PI / 2;
-        gun.position.set(0, -0.6, -0.4);
-        rightArm.add(gun);
-    }
-    
-    const leftLeg = new THREE.Group();
-    leftLeg.position.set(-0.3, -0.2, 0);
-    const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8), matArmor);
-    legL.position.y = -0.4;
-    leftLeg.add(legL);
-    torso.add(leftLeg);
-    
-    const rightLeg = new THREE.Group();
-    rightLeg.position.set(0.3, -0.2, 0);
-    const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8), matArmor);
-    legR.position.y = -0.4;
-    rightLeg.add(legR);
-    torso.add(rightLeg);
-    
-    // Add glowing wireframe outer shell
-    const wireMat = new THREE.MeshBasicMaterial({ color, wireframe: true, transparent: true, opacity: 0.6 });
-    const wireGroup = mesh.clone(true);
-    wireGroup.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-            child.material = wireMat;
-            child.scale.setScalar(1.05); // slightly larger
+    let leftArm: THREE.Group | undefined;
+    let rightArm: THREE.Group | undefined;
+    let leftLeg: THREE.Group | undefined;
+    let rightLeg: THREE.Group | undefined;
+
+    if (type === 'dodger') {
+        const coreGeo = new THREE.SphereGeometry(0.5, 8, 8);
+        const core = new THREE.Mesh(coreGeo, matArmor);
+        torso.add(core); 
+        const eye = new THREE.Mesh(new THREE.CylinderGeometry(0.51, 0.51, 0.2, 8, 1, false, 0, Math.PI), matGlow);
+        eye.rotation.y = -Math.PI / 2;
+        torso.add(eye);
+        const legLocs = [
+            { x: -0.5, z: 0.5, yR: Math.PI/4 }, { x: 0.5, z: 0.5, yR: -Math.PI/4 },
+            { x: -0.5, z: -0.5, yR: Math.PI*3/4 }, { x: 0.5, z: -0.5, yR: -Math.PI*3/4 }
+        ];
+        legLocs.forEach(loc => {
+            const leg = new THREE.Group();
+            leg.position.set(loc.x, 0, loc.z); leg.rotation.y = loc.yR;
+            const upperLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), matArmor);
+            upperLeg.position.set(0, -0.3, -0.3); upperLeg.rotation.x = Math.PI/4;
+            const lowerLeg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.8, 0.15), matDark);
+            lowerLeg.position.set(0, -0.8, -0.6); lowerLeg.rotation.x = -Math.PI/8;
+            leg.add(upperLeg, lowerLeg); torso.add(leg);
+        });
+    } else if (type === 'bomber') {
+        const geo = new THREE.IcosahedronGeometry(0.8, 0);
+        const core = new THREE.Mesh(geo, matArmor);
+        torso.add(core);
+        torso.position.y = 1.5; 
+        const coreGeo2 = new THREE.IcosahedronGeometry(1.0, 0);
+        const wireMat = new THREE.MeshBasicMaterial({ color: color, wireframe: true, transparent: true, opacity: 0.6 });
+        const core2 = new THREE.Mesh(coreGeo2, wireMat);
+        torso.add(core2);
+    } else {
+        let chestGeo: THREE.BufferGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.6, 8);
+        if (type === 'shielder') chestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.5);
+        const chest = new THREE.Mesh(chestGeo, matArmor); torso.add(chest);
+        
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), matDark);
+        head.position.y = (type === 'shielder' ? 0.7 : 0.5); torso.add(head);
+        
+        const eye = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.1, 8, 1, false, 0, Math.PI), matGlow);
+        eye.position.y = (type === 'shielder' ? 0.7 : 0.5); eye.rotation.y = -Math.PI / 2; torso.add(eye);
+        
+        leftArm = new THREE.Group(); leftArm.position.set(-0.6, 0.2, 0);
+        const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.7, 8), matArmor);
+        armL.position.y = -0.35; leftArm.add(armL); torso.add(leftArm);
+        
+        rightArm = new THREE.Group(); rightArm.position.set(0.6, 0.2, 0);
+        const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.7, 8), matArmor);
+        armR.position.y = -0.35; rightArm.add(armR); torso.add(rightArm);
+        
+        if (type === 'gunner') {
+            const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9, 8), matDark);
+            gun.rotation.x = Math.PI / 2; gun.position.set(0, -0.6, -0.4); rightArm.add(gun);
         }
-    });
-    mesh.add(wireGroup);
+        
+        leftLeg = new THREE.Group(); leftLeg.position.set(-0.3, -0.2, 0);
+        const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8), matArmor);
+        legL.position.y = -0.4; leftLeg.add(legL); torso.add(leftLeg);
+        
+        rightLeg = new THREE.Group(); rightLeg.position.set(0.3, -0.2, 0);
+        const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8), matArmor);
+        legR.position.y = -0.4; rightLeg.add(legR); torso.add(rightLeg);
+
+        if (type === 'shielder') {
+            const shieldMat = new THREE.MeshPhysicalMaterial({ color: 0x00ffff, transmission: 0.9, opacity: 1, transparent: true, emissive: 0x0088aa, emissiveIntensity: 1.0 });
+            const shieldGeo = new THREE.CylinderGeometry(1.2, 1.2, 2.5, 12, 1, false, Math.PI * 0.75, Math.PI * 0.5);
+            const shield = new THREE.Mesh(shieldGeo, shieldMat);
+            shield.position.set(0, 0, -0.5); shield.rotation.y = Math.PI; torso.add(shield);
+            
+            const shieldWireMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.3 });
+            const shieldWire = new THREE.Mesh(shieldGeo, shieldWireMat);
+            shieldWire.position.copy(shield.position); shieldWire.rotation.copy(shield.rotation); torso.add(shieldWire);
+        }
+        
+        const wireMat = new THREE.MeshBasicMaterial({ color, wireframe: true, transparent: true, opacity: 0.6 });
+        const partsToWire: THREE.Mesh[] = [];
+        torso.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+                partsToWire.push(child as THREE.Mesh);
+            }
+        });
+        
+        partsToWire.forEach(child => {
+            const wireMesh = new THREE.Mesh(child.geometry, wireMat);
+            wireMesh.scale.setScalar(1.05);
+            wireMesh.position.copy(child.position);
+            wireMesh.rotation.copy(child.rotation);
+            // reset child position to avoid doubling since we are adding it as a child?
+            // Actually, if we add wireMesh as a child of child, it inherits position/rotation.
+            // So we just zero its local pos/rot.
+            wireMesh.position.set(0, 0, 0);
+            wireMesh.rotation.set(0, 0, 0);
+            child.add(wireMesh);
+        });
+    }
     
     mesh.scale.set(2.0, 2.0, 2.0); // Make enemies larger
     
@@ -1001,62 +1221,95 @@ export class GameEngine {
   spawnBoss() {
       const bossGroup = new THREE.Group();
       
-      // Massive Floating Pyramid
-      const geoCenter = new THREE.ConeGeometry(15, 30, 4);
-      const mat = new THREE.MeshPhysicalMaterial({ 
-          color: 0xaa0000, 
-          emissive: 0x550000, 
-          roughness: 0.1,
-          metalness: 0.8,
-          clearcoat: 1.0,
+      // Giant Core Eye (Sphere)
+      const eyeGeo = new THREE.SphereGeometry(12, 32, 32);
+      
+      // Shader for the eye to look like a glowing iris
+      const eyeMat = new THREE.ShaderMaterial({
+          uniforms: {
+              time: { value: 0 },
+              color1: { value: new THREE.Color(0xef4444) }, // Red iris
+              color2: { value: new THREE.Color(0x000000) }, // Dark pupil
+          },
+          vertexShader: `
+              varying vec2 vUv;
+              void main() {
+                  vUv = uv;
+                  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+          `,
+          fragmentShader: `
+              uniform vec3 color1;
+              uniform vec3 color2;
+              uniform float time;
+              varying vec2 vUv;
+              void main() {
+                  // Iris effect based on distance from center of UV
+                  vec2 center = vec2(0.5, 0.5);
+                  float dist = distance(vUv, center);
+                  // Pupil is black
+                  float isPupil = step(dist, 0.15);
+                  // Iris glows red/orange
+                  float isIris = step(dist, 0.4) - isPupil;
+                  
+                  vec3 finalColor = mix(vec3(0.05), color1, isIris * (1.0 - dist*2.0));
+                  finalColor = mix(finalColor, color2, isPupil);
+                  
+                  // Add some glowing pulse
+                  finalColor += color1 * isIris * (sin(time * 3.0) * 0.2 + 0.2);
+                  
+                  gl_FragColor = vec4(finalColor, 1.0);
+              }
+          `
       });
-      const mainObj = new THREE.Mesh(geoCenter, mat);
-      mainObj.rotation.x = Math.PI; // Point down
-      bossGroup.add(mainObj);
+      const eye = new THREE.Mesh(eyeGeo, eyeMat);
+      eye.name = "bossEye";
+      bossGroup.add(eye);
       
-      // Wireframe overlay for boss
-      const wireMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, transparent: true, opacity: 0.8 });
-      const wireMesh = new THREE.Mesh(geoCenter, wireMat);
-      wireMesh.scale.setScalar(1.02);
-      wireMesh.rotation.copy(mainObj.rotation);
-      bossGroup.add(wireMesh);
+      // Outer Stony/Icy Shell (Icosahedron)
+      const shellGeo = new THREE.IcosahedronGeometry(18, 1);
+      const shellMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.2, roughness: 0.9, flatShading: true });
+      const shell = new THREE.Mesh(shellGeo, shellMat);
       
-      // Rotating energy ring
-      const ringGeo = new THREE.TorusGeometry(18, 0.8, 8, 4);
-      const ringMat = new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xcc2200, roughness: 0.1, wireframe: true });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.name = "bossRing"; // to rotate it in update
-      ring.rotation.x = Math.PI / 2;
-      bossGroup.add(ring);
+      // We want the eye to peek through. 
+      // Instead of complex CSG, we'll just scale the shell down on Z and push it back slightly
+      shell.scale.set(1.0, 1.0, 0.5);
+      shell.position.z = -5;
+      bossGroup.add(shell);
       
-      // "Wings" or side blocks - making them giant floating prisms
-      const wingGeo = new THREE.CylinderGeometry(2, 2, 20, 3);
-      const wingMat = new THREE.MeshStandardMaterial({ color: 0x333333, emissive: 0x111111 });
-      const wing1 = new THREE.Mesh(wingGeo, wingMat);
-      wing1.position.set(-15, 5, 0);
-      wing1.rotation.z = Math.PI / 4;
-      bossGroup.add(wing1);
+      // Add floating debris/rocks around the boss
+      const debrisGeo = new THREE.DodecahedronGeometry(3, 0);
+      const numDebris = 15;
+      const debrisGroup = new THREE.Group();
+      debrisGroup.name = "bossRing";
       
-      const wing2 = new THREE.Mesh(wingGeo, wingMat);
-      wing2.position.set(15, 5, 0);
-      wing2.rotation.z = -Math.PI / 4;
-      bossGroup.add(wing2);
+      for(let i = 0; i < numDebris; i++) {
+          const deb = new THREE.Mesh(debrisGeo, shellMat);
+          const angle = (i / numDebris) * Math.PI * 2;
+          const radius = 25 + Math.random() * 5;
+          deb.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, (Math.random() - 0.5) * 10);
+          deb.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+          debrisGroup.add(deb);
+      }
+      bossGroup.add(debrisGroup);
       
       const diff = useGameStore.getState().difficultyLevel;
       
       // Starting position way out and high up
-      bossGroup.position.set(0, 30, -100);
+      bossGroup.position.set(0, 40, -150);
       
       this.scene.add(bossGroup);
       
       this.enemies.push({
           mesh: bossGroup,
           type: 'boss',
-          hp: 800 * diff,
+          hp: 100 * diff,
           lane: 0,
           zBase: -80, // Target Z for 'entering'
           state: 'intro',
-          timer: 0
+          timer: 0,
+          shotsFired: 0,
+          shotDelayTimer: 0
       });
   }
 
@@ -1492,7 +1745,7 @@ export class GameEngine {
     
     // 3.5 Move Scenery for Parallax Effect
     let dummy = new THREE.Object3D();
-    const instUpdate = { pillar: false, mountain: false, crys: false, frame: false, inner: false };
+    const instUpdate = { pillar: false, mountain: false, crys: false, frame: false, inner: false, ring: false, monolith: false, tetra: false };
     
     for (const inst of this.sceneryInstances) {
         if (inst.type === 'mountain') {
@@ -1534,6 +1787,21 @@ export class GameEngine {
             dummy.updateMatrix();
             this.innerFrameInstanced.setMatrixAt(inst.index, dummy.matrix);
             instUpdate.inner = true;
+        } else if (inst.type === 'monolith') {
+            dummy.rotation.copy(inst.rot);
+            dummy.updateMatrix();
+            this.monolithInstanced.setMatrixAt(inst.index, dummy.matrix);
+            instUpdate.monolith = true;
+        } else if (inst.type === 'ring') {
+            dummy.rotation.copy(inst.rot);
+            dummy.updateMatrix();
+            this.ringInstanced.setMatrixAt(inst.index, dummy.matrix);
+            instUpdate.ring = true;
+        } else if (inst.type === 'tetra') {
+            dummy.rotation.copy(inst.rot);
+            dummy.updateMatrix();
+            this.tetraInstanced.setMatrixAt(inst.index, dummy.matrix);
+            instUpdate.tetra = true;
         }
     }
     
@@ -1542,6 +1810,9 @@ export class GameEngine {
     if (instUpdate.crys) this.crysInstanced.instanceMatrix.needsUpdate = true;
     if (instUpdate.frame) this.frameInstanced.instanceMatrix.needsUpdate = true;
     if (instUpdate.inner) this.innerFrameInstanced.instanceMatrix.needsUpdate = true;
+    if (instUpdate.monolith) this.monolithInstanced.instanceMatrix.needsUpdate = true;
+    if (instUpdate.ring) this.ringInstanced.instanceMatrix.needsUpdate = true;
+    if (instUpdate.tetra) this.tetraInstanced.instanceMatrix.needsUpdate = true;
     
     // 4. Update Projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
@@ -1661,8 +1932,21 @@ export class GameEngine {
         } else if (e.type === 'boss') {
             const ring = e.mesh.getObjectByName('bossRing');
             if (ring) {
-                ring.rotation.z += dt * 2;
+                ring.rotation.z += dt * 0.5;
                 ring.rotation.x = Math.sin(e.timer) * 0.2;
+                ring.rotation.y = Math.cos(e.timer) * 0.2;
+            }
+            const eye = e.mesh.getObjectByName('bossEye') as THREE.Mesh;
+            if (eye) {
+                // Have the eye track the player slightly
+                const targetPos = this.player.position.clone();
+                // We fake the eye pointing by rotating the sphere a bit
+                eye.lookAt(targetPos.x, targetPos.y + 40, targetPos.z - 150);
+                
+                const mat = eye.material as THREE.ShaderMaterial;
+                if (mat && mat.uniforms && mat.uniforms.time) {
+                    mat.uniforms.time.value = this.runTime;
+                }
             }
             
             if (e.state === 'intro') {
@@ -1692,43 +1976,51 @@ export class GameEngine {
                     
                     // Boss attack pattern
                     if (e.timer > 1.5 - (diffLevel * 0.1)) {
+                        e.state = 'shooting'; // Transition to shooting phase
+                        e.shotsFired = 0;
+                        e.shotDelayTimer = 0.5; // Trigger first shot immediately
                         e.timer = 0;
-                        
-                        // High-damage laser attack
-                        for(let k = -1; k <= 1; k++) {
-                            setTimeout(() => {
-                                if (store.gameState !== 'PLAYING') return;
-                                const projGeo = new THREE.CylinderGeometry(0.8, 0.8, 10, 8);
-                                const projMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Massive red laser
-                                const proj = new THREE.Mesh(projGeo, projMat);
-                                
-                                const spawnPos = new THREE.Vector3();
-                                e.mesh.getWorldPosition(spawnPos);
-                                spawnPos.y -= 5; // Base of the pyramid
-                                proj.position.copy(spawnPos);
-                                
-                                const pPos = this.player.position.clone();
-                                pPos.x += k * LANE_WIDTH * 1.5;
-                                const dir = pPos.sub(spawnPos).normalize();
-                                
-                                // Align cylinder to direction
-                                const axis = new THREE.Vector3(0, 1, 0);
-                                proj.quaternion.setFromUnitVectors(axis, dir);
-                                
-                                this.scene.add(proj);
-                                this.projectiles.push({ mesh: proj, velocity: dir.multiplyScalar(40 + 5*diffLevel), isPlayer: false, life: 5.0, damage: 30 });
-                            }, (k + 1) * 300);
+                    }
+                } else if (e.state === 'shooting') {
+                    e.mesh.position.z = e.zBase + Math.sin(e.timer * 0.3) * 5;
+                    e.shotDelayTimer = (e.shotDelayTimer || 0) + dt;
+                    
+                    if (e.shotDelayTimer >= 0.5) {
+                        e.shotDelayTimer = 0; // Wait another 0.5 seconds for next shot
+                        if (store.gameState === 'PLAYING') {
+                            const projGeo = new THREE.CylinderGeometry(0.8, 0.8, 10, 8);
+                            const projMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Massive red laser
+                            const proj = new THREE.Mesh(projGeo, projMat);
+                            
+                            const spawnPos = new THREE.Vector3();
+                            e.mesh.getWorldPosition(spawnPos);
+                            proj.position.copy(spawnPos);
+                            
+                            const pPos = this.player.position.clone();
+                            const dir = pPos.sub(spawnPos).normalize();
+                            
+                            const axis = new THREE.Vector3(0, 1, 0);
+                            proj.quaternion.setFromUnitVectors(axis, dir);
+                            
+                            this.scene.add(proj);
+                            this.projectiles.push({ mesh: proj, velocity: dir.multiplyScalar(40 + 5*diffLevel), isPlayer: false, life: 5.0, damage: 30 });
+                            
+                            // Flash scene lighting (simulate beam lighting)
+                            const originalIntensity = this.dirLight.intensity;
+                            const originalColor = this.dirLight.color.getHex();
+                            this.dirLight.color.setHex(0xff0000);
+                            this.dirLight.intensity = 5.0;
+                            setTimeout(() => { // Keep setTimeout for visual only, it doesn't affect gameplay logic
+                                this.dirLight.color.setHex(originalColor);
+                                this.dirLight.intensity = originalIntensity;
+                            }, 200);
                         }
                         
-                        // Flash scene lighting (simulate beam lighting)
-                        const originalIntensity = this.dirLight.intensity;
-                        const originalColor = this.dirLight.color.getHex();
-                        this.dirLight.color.setHex(0xff0000);
-                        this.dirLight.intensity = 5.0;
-                        setTimeout(() => {
-                            this.dirLight.color.setHex(originalColor);
-                            this.dirLight.intensity = originalIntensity;
-                        }, 400);
+                        e.shotsFired = (e.shotsFired || 0) + 1;
+                        if (e.shotsFired >= 3) {
+                            e.state = 'attacking';
+                            e.timer = 0; // Reset attack cooldown 
+                        }
                     }
                 }
             }
@@ -1740,21 +2032,23 @@ export class GameEngine {
             const t = this.runTime * animSpeed + e.timer * 5; // Use timer as offset
             
             // Legs swing
-            e.modelParts.leftLeg.rotation.x = Math.sin(t) * 0.8;
-            e.modelParts.rightLeg.rotation.x = Math.sin(t + Math.PI) * 0.8;
+            if (e.modelParts.leftLeg) e.modelParts.leftLeg.rotation.x = Math.sin(t) * 0.8;
+            if (e.modelParts.rightLeg) e.modelParts.rightLeg.rotation.x = Math.sin(t + Math.PI) * 0.8;
             
             // Arms swing
-            e.modelParts.leftArm.rotation.x = Math.sin(t + Math.PI) * 0.5;
+            if (e.modelParts.leftArm) e.modelParts.leftArm.rotation.x = Math.sin(t + Math.PI) * 0.5;
             
-            if (e.type === 'gunner' || e.type === 'bomber') {
-                // Pointing weapon forward
-                e.modelParts.rightArm.rotation.x = -0.1 + Math.sin(t*2)*0.05;
-            } else {
-                e.modelParts.rightArm.rotation.x = Math.sin(t) * 0.5;
+            if (e.modelParts.rightArm) {
+                if (e.type === 'gunner' || e.type === 'bomber') {
+                    // Pointing weapon forward
+                    e.modelParts.rightArm.rotation.x = -0.1 + Math.sin(t*2)*0.05;
+                } else {
+                    e.modelParts.rightArm.rotation.x = Math.sin(t) * 0.5;
+                }
             }
             
             // Torso bounce
-            e.modelParts.torso.position.y = 0.8 + Math.abs(Math.sin(t * 2)) * 0.1;
+            if (e.modelParts.torso) e.modelParts.torso.position.y = 0.8 + Math.abs(Math.sin(t * 2)) * 0.1;
         }
         
         // Player body collision
